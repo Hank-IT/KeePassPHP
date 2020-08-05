@@ -33,7 +33,7 @@ abstract class Reader
     /**
      * Reads all remaining bytes from this instance.
      *
-     * @return string a string containing all remaining bytes that this Read can read,
+     * @return string|null a string containing all remaining bytes that this Read can read,
      *                or null if no more bytes can be read.
      */
     abstract public function readToTheEnd();

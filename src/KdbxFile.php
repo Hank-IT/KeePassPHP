@@ -288,6 +288,7 @@ class KdbxFile
 
             return null;
         }
+
         $decrypted = $cipher->decrypt($reader->readToTheEnd());
         if (empty($decrypted) || substr($decrypted, 0, self::STARTBYTES_LEN)
             !== $header->startBytes) {

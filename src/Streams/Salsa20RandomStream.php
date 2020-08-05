@@ -2,7 +2,6 @@
 
 declare(strict_types=1);
 
-
 namespace KeePassPHP\Streams;
 
 use KeePassPHP\Contracts\RandomStream;
@@ -20,8 +19,10 @@ class Salsa20RandomStream implements RandomStream
 
     /**
      * Creates a new Salsa20Stream instance.
+     *
      * @param string $key The 32-byte-long string to use as key.
-     * @param string $iv The 8-byte-long string to use as initialization vector.
+     * @param string $iv  The 8-byte-long string to use as initialization vector.
+     *
      * @return static A new Salsa20Stream instance, of null if $key or $iv do not have a suitable length.
      */
     public static function create($key, $iv)
@@ -35,23 +36,24 @@ class Salsa20RandomStream implements RandomStream
 
     protected function __construct($key, $iv)
     {
-        $this->_state = array();
-        for ($i = 0; $i < self::STATE_LEN; $i++)
+        $this->_state = [];
+        for ($i = 0; $i < self::STATE_LEN; $i++) {
             $this->_state[$i] = 0;
+        }
 
-        $this->_output = array();
-        for ($i = 0; $i < self::OUTPUT_LEN; $i++)
+        $this->_output = [];
+        for ($i = 0; $i < self::OUTPUT_LEN; $i++) {
             $this->_output[$i] = 0;
+        }
 
         $this->_outputPos = self::OUTPUT_LEN;
-        $this->keySetup(array_values(unpack("v16", $key)));
-        $this->ivSetup(array_values(unpack("v4", $iv)));
+        $this->keySetup(array_values(unpack('v16', $key)));
+        $this->ivSetup(array_values(unpack('v4', $iv)));
     }
 
     private function keySetup(array $key)
     {
-        for ($i = 0; $i < 4; $i++)
-        {
+        for ($i = 0; $i < 4; $i++) {
             $j = 2 * $i;
             $this->_state[2 * $i + 2] = $key[$j];
             $this->_state[2 * $i + 3] = $key[$j + 1];
@@ -91,18 +93,18 @@ class Salsa20RandomStream implements RandomStream
         $b = $b % 16;
         $nt = (($t << $b) & 0xFFFF) | ($s >> (16 - $b));
         $ns = (($s << $b) & 0xFFFF) | ($t >> (16 - $b));
-        $x[2*$target + $m] = $x[2*$target + $m] ^ $ns;
-        $x[2*$target + 1 - $m] = $x[2*$target + 1 - $m] ^ $nt;
+        $x[2 * $target + $m] = $x[2 * $target + $m] ^ $ns;
+        $x[2 * $target + 1 - $m] = $x[2 * $target + 1 - $m] ^ $nt;
     }
 
     private function nextOutput()
     {
-        $x = array();
-        for ($i = 0; $i < self::STATE_LEN; $i++)
+        $x = [];
+        for ($i = 0; $i < self::STATE_LEN; $i++) {
             $x[$i] = $this->_state[$i];
+        }
 
-        for ($i = 0; $i < 10; $i++)
-        {
+        for ($i = 0; $i < 10; $i++) {
             $this->addRotXor($x, 0, 12, 7, 4);
             $this->addRotXor($x, 4, 0, 9, 8);
             $this->addRotXor($x, 8, 4, 13, 12);
@@ -137,30 +139,27 @@ class Salsa20RandomStream implements RandomStream
             $this->addRotXor($x, 14, 13, 18, 15);
         }
 
-        for ($i = 0; $i < self::STATE_LEN; $i+= 2)
-        {
+        for ($i = 0; $i < self::STATE_LEN; $i += 2) {
             $s = $x[$i] + $this->_state[$i];
             $x[$i] = $s & 0xFFFF;
             $x[$i + 1] = ($x[$i + 1] + $this->_state[$i + 1] + ($s >> 16)) & 0xFFFF;
         }
 
-        $out = "";
-        for ($i = 0; $i < self::STATE_LEN; $i++)
-            $out .= pack("v", $x[$i]);
+        $out = '';
+        for ($i = 0; $i < self::STATE_LEN; $i++) {
+            $out .= pack('v', $x[$i]);
+        }
 
         $this->_output = $out;
         $this->_outputPos = 0;
         $this->_state[16]++;
-        if ($this->_state[16] == 0xFFFF)
-        {
+        if ($this->_state[16] == 0xFFFF) {
             $this->_state[16] = 0;
             $this->_state[17]++;
-            if ($this->_state[17] == 0xFFFF)
-            {
+            if ($this->_state[17] == 0xFFFF) {
                 $this->_state[17] = 0;
                 $this->_state[18]++;
-                if ($this->_state[18] == 0xFFFF)
-                {
+                if ($this->_state[18] == 0xFFFF) {
                     $this->_state[18] = 0;
                     $this->_state[19]++;
                 }
@@ -170,23 +169,26 @@ class Salsa20RandomStream implements RandomStream
 
     /**
      * Generates $n random bytes and returns them as a string.
+     *
      * @param int $n The number of bytes to generate.
+     *
      * @return string A $n-long string.
      */
     public function getNextBytes($n)
     {
-        $s = "";
+        $s = '';
         $nRem = $n;
-        while ($nRem > 0)
-        {
-            if ($this->_outputPos == 64)
+        while ($nRem > 0) {
+            if ($this->_outputPos == 64) {
                 $this->nextOutput();
+            }
             $nCopy = min(64 - $this->_outputPos, $nRem);
             $s .= substr($this->_output, $this->_outputPos, $nCopy);
 
             $nRem -= $nCopy;
             $this->_outputPos += $nCopy;
         }
+
         return $s;
     }
 }

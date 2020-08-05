@@ -15,6 +15,7 @@ class KeyFromHash implements Key
 
     /**
      * Stores the given hash string.
+     *
      * @param string $h A raw hash string.
      */
     public function __construct($h)
@@ -24,6 +25,7 @@ class KeyFromHash implements Key
 
     /**
      * Retrieves the stored hash.
+     *
      * @return string A raw hash string.
      */
     public function getHash()

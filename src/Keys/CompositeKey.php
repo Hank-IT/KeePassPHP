@@ -18,16 +18,18 @@ class CompositeKey implements Key
     /**
      * Constructs a new CompositeKey instance using $hashAlgo to hash all
      * keys all together.
+     *
      * @param string $hashAlgo A hash algorithm name.
      */
     public function __construct($hashAlgo)
     {
-        $this->_keys = array();
+        $this->_keys = [];
         $this->_hashAlgo = $hashAlgo;
     }
 
     /**
      * Adds the given key $key to this CompositeKey.
+     *
      * @param Key $key An iKey instance to add.
      */
     public function addKey(Key $key)
@@ -37,15 +39,18 @@ class CompositeKey implements Key
 
     /**
      * Computes the hash of all the keys of this CompositeKey.
+     *
      * @return string A raw hash string.
      */
     public function getHash()
     {
         $h = hash_init($this->_hashAlgo);
-        foreach($this->_keys as &$v)
+        foreach ($this->_keys as &$v) {
             hash_update($h, $v);
+        }
         $r = hash_final($h, true);
         unset($h);
+
         return $r;
     }
 }

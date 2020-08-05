@@ -2,7 +2,6 @@
 
 declare(strict_types=1);
 
-
 namespace KeePassPHP\Readers;
 
 /**
@@ -16,6 +15,7 @@ class ResourceReader extends Reader
     /**
      * Constructs a new ResourceReader instance that reads the PHP resource
      * pointer $f.
+     *
      * @param resource $f A PHP resource pointer.
      */
     protected function __construct($f)
@@ -25,41 +25,47 @@ class ResourceReader extends Reader
 
     /**
      * Creates a new ResourceReader instance reading the file $path.
+     *
      * @param string $path A file path.
+     *
      * @return static A new ResourceReader instance if $path could be opened and is
-     *         readable, false otherwise.
+     *                readable, false otherwise.
      */
-    static public function openFile($path)
+    public static function openFile($path)
     {
-        if(is_readable($path))
-        {
+        if (is_readable($path)) {
             $f = fopen($path, 'rb');
-            if($f !== false)
+            if ($f !== false) {
                 return new static($f);
+            }
         }
+
         return null;
     }
 
     public function read($n)
     {
-        if($this->canRead())
-        {
+        if ($this->canRead()) {
             $s = fread($this->_res, $n);
-            if($s !== false)
+            if ($s !== false) {
                 return $s;
+            }
         }
+
         return null;
     }
 
     public function readToTheEnd()
     {
-        if(!$this->canRead())
+        if (!$this->canRead()) {
             return null;
+        }
 
         ob_start();
         fpassthru($this->_res);
         $r = ob_get_contents();
         ob_end_clean();
+
         return $r;
     }
 

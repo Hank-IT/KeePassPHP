@@ -11,6 +11,7 @@ interface BoxedString
 {
     /**
      * Gets the boxed string.
+     *
      * @return string a string.
      */
     public function getPlainString();

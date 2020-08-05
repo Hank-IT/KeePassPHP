@@ -22,6 +22,7 @@ class ProtectedString implements BoxedString
 
     /**
      * Gets the real content of the protected string.
+     *
      * @return string a string.
      */
     public function getPlainString()

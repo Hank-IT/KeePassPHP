@@ -15,6 +15,7 @@ class StringReader extends Reader
 
     /**
      * Constructs a new StringReader instance that reads the string $s.
+     *
      * @param string $s A non-null string.
      */
     public function __construct($s)
@@ -26,12 +27,14 @@ class StringReader extends Reader
 
     public function read($n)
     {
-        if(!$this->canRead())
+        if (!$this->canRead()) {
             return null;
+        }
 
         $t = min($n, $this->_n - $this->_pt);
         $res = substr($this->_str, $this->_pt, $t);
         $this->_pt += $t;
+
         return $res;
     }
 
@@ -42,11 +45,13 @@ class StringReader extends Reader
 
     public function readToTheEnd()
     {
-        if(!$this->canRead())
+        if (!$this->canRead()) {
             return null;
+        }
 
         $res = substr($this->_str, $this->_pt);
         $this->_pt = $this->_n;
+
         return $res;
     }
 

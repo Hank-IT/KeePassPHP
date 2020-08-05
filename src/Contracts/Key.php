@@ -11,6 +11,7 @@ interface Key
 {
     /**
      * Gets this instance hash.
+     *
      * @return string A raw hash string.
      */
     public function getHash();

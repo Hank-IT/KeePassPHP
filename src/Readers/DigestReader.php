@@ -2,7 +2,6 @@
 
 declare(strict_types=1);
 
-
 namespace KeePassPHP\Readers;
 
 /**
@@ -17,7 +16,8 @@ class DigestReader extends Reader
     /**
      * Constructs a new DigestReader implementation, reading from the Reader
      * $reader and hashing all data with the algorithm $hashAlgo.
-     * @param Reader $reader A Reader instance.
+     *
+     * @param Reader $reader   A Reader instance.
      * @param string $hashAlgo A hash algorithm name.
      */
     public function __construct(Reader $reader, $hashAlgo)
@@ -29,22 +29,24 @@ class DigestReader extends Reader
     public function read($n)
     {
         $s = $this->_base->read($n);
-        if($s !== null)
-        {
+        if ($s !== null) {
             hash_update($this->_resource, $s);
+
             return $s;
         }
+
         return null;
     }
 
     public function readToTheEnd()
     {
         $s = $this->_base->readToTheEnd();
-        if($s !== null)
-        {
+        if ($s !== null) {
             hash_update($$this->_resource, $s);
+
             return $s;
         }
+
         return null;
     }
 
@@ -60,6 +62,7 @@ class DigestReader extends Reader
 
     /**
      * Gets the hash of all read data so far.
+     *
      * @return string A raw hash string.
      */
     public function GetDigest()

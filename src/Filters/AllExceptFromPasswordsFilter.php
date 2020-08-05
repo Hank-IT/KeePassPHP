@@ -2,7 +2,6 @@
 
 declare(strict_types=1);
 
-
 namespace KeePassPHP\Filters;
 
 use KeePassPHP\Contracts\Filter;

@@ -273,44 +273,46 @@ class KeePassPHP
 	 */
 	public static function getDatabase($dbid, $kphpdbPwd, $dbPwd, $full)
 	{
-		if(!self::$_started)
-		{
+		if(! self::$_started) {
 			self::addDebug("KeepassPHP is not started!");
+
 			return null;
 		}
 
-		try
-		{
+		try {
 			$kphpdb = self::openKphpDB($dbid, $kphpdbPwd);
 
 			$db = null;
-			if(!$full && $kphpdb->getDBType() == KphpDB::DBTYPE_KDBX)
-			{
+			if(!$full && $kphpdb->getDBType() == KphpDB::DBTYPE_KDBX) {
 				$db = $kphpdb->getDB();
-				if($db != null)
-					return $db;
+
+				if($db != null) {
+                    return $db;
+                }
 			}
 
-			$dbContent = self::$_databaseManager->getContent(
-				$kphpdb->getDBFileHash());
+			$dbContent = self::$_databaseManager->getContent($kphpdb->getDBFileHash());
+
 			if(empty($dbContent))
 				throw new KeePassPHPException("Database file not found (hash = "
 					. $kphpdb->getDBFileHash() . ")");
 
 			$rawKey = null;
 			$keyFileHash = $kphpdb->getKeyFileHash();
-			if(!empty($keyFileHash))
-			{
+
+			if(!empty($keyFileHash)) {
 				$rawKey = self::$_keyManager->getContent($keyFileHash);
 				if($rawKey == null)
 					throw new KeePassPHPException("Key file not found (ID = "
 						. $dbid . ")");
 			}
+
 			return self::openDatabase($dbContent, $dbPwd, $rawKey);
 		}
 		catch(KeePassPHPException $exception)
 		{
 			self::raiseError($exception);
+
 			return null;
 		}
 	}

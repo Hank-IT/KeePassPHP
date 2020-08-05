@@ -6,3 +6,5 @@ test.kdbx
 test.key
 /.idea
 /vendor
+/demo.php
+/src/data

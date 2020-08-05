@@ -129,10 +129,6 @@ abstract class Cipher
      */
     public static function Create($method, $key = null, $iv = '', $padding = self::PADDING_PKCS7)
     {
-        return (PHP_VERSION_ID >= 50400 && extension_loaded('openssl'))
-            ? new CipherOpenSSL($method, $key, $iv, $padding)
-            : (extension_loaded('mcrypt') && defined('MCRYPT_RIJNDAEL_128')
-                ? new CipherMcrypt($method, $key, $iv, $padding)
-                : null);
+        return new CipherOpenSSL($method, $key, $iv, $padding);
     }
 }

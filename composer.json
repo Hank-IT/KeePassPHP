@@ -10,16 +10,27 @@
             "name": "Louis Traynard",
             "email": "louis.traynard@m4x.org",
             "homepage": "https://github.com/shkdee"
+        },
+        {
+            "name": "Alexander Hank",
+            "email": "info@hank-it.com",
+            "homepage": "https://hank-it.com"
         }
     ],
     "require": {
         "php": ">=7.3.0",
-        "ext-hash": "*"
-    },
-    "suggest": {
-        "ext-openssl": "A better and faster alternative to mcrypt"
+        "ext-hash": "*",
+        "ext-xmlreader": "*",
+        "ext-json": "*",
+        "ext-openssl": "*",
+        "ext-zlib": "*"
     },
     "autoload": {
-        "files": ["keepassphp/keepassphp.php"]
+        "psr-4": {
+            "KeePassPHP\\": "src"
+        },
+        "files": [
+            "src/Helpers/gzdecode2.php"
+        ]
     }
 }

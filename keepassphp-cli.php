@@ -1,5 +1,9 @@
 <?php
 
+require_once __DIR__  . DIRECTORY_SEPARATOR . 'vendor/autoload.php';
+
+use \KeePassPHP\KeePassPHP as KeePassPHP;
+
 function usageAndDie()
 {
 	echo "Usage: php keepassphp-cli.php <command> [args...]",
@@ -124,10 +128,6 @@ function visitEntryValues(\KeePassPHP\Database $db, $uuid)
 $count = isset($argc) ? intval($argc) : 0;
 if($count < 2)
 	usageAndDie();
-
-// load classes
-require_once "keepassphp/keepassphp.php";
-use \KeePassPHP\KeePassPHP as KeePassPHP;
 
 // configuration
 $debugMode = true;
@@ -329,4 +329,3 @@ else
 	echo "\nUnkown command '", $command, "'.\n";
 	usageAndDie();
 }
-?>

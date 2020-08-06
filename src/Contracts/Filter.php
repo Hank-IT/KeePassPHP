@@ -28,46 +28,60 @@ interface Filter
      * discarded).
      *
      * @param Entry $entry An entry.
+     *
+     * @return bool
      */
-    public function acceptEntry(Entry $entry);
+    public function acceptEntry(Entry $entry): bool;
 
     /**
      * Returns true if the given group must be serialized (otherwise it will be
      * discarded).
      *
      * @param Entry $entry A group.
+     *
+     * @return bool
      */
-    public function acceptGroup(Group $group);
+    public function acceptGroup(Group $group): bool;
 
     /**
      * Returns true if the given history entry must be serialized (otherwise it
      * will be discarded).
      *
      * @param Entry $entry A history entry.
+     *
+     * @return bool
      */
-    public function acceptHistoryEntry(Entry $entry);
+    public function acceptHistoryEntry(Entry $entry): bool;
 
     /**
      * Returns true if tags must be serialized.
+     *
+     * @return bool
      */
-    public function acceptTags();
+    public function acceptTags(): bool;
 
     /**
      * Returns true if icons must be serialized.
+     *
+     * @return bool
      */
-    public function acceptIcons();
+    public function acceptIcons(): bool;
 
     /**
      * Returns true if passwords must be serialized.
-     * WARNING: it is NOT recommanded to return true in implementations of this
+     * WARNING: it is NOT recommended to return true in implementations of this
      * method, because passwords should not be copied in most cases.
+     *
+     * @return bool
      */
-    public function acceptPasswords();
+    public function acceptPasswords(): bool;
 
     /**
      * Returns true if string fields with the given key must be serialized.
      *
-     * @param $key mixed A string field key.
+     * @param $key string A string field key.
+     *
+     * @return bool
      */
-    public function acceptStrings($key);
+    public function acceptStrings(string $key): bool;
 }

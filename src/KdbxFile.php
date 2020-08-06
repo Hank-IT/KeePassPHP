@@ -174,7 +174,7 @@ class KdbxFile
 
         $hashedContent = HashedBlockReader::hashString($content, self::HASH);
         $transformedKey = self::transformKey($key, $header);
-        $cipher = Cipher::Create(
+        $cipher = Cipher::create(
             $cipherMethod,
             $transformedKey,
             $header->encryptionIV
@@ -278,7 +278,7 @@ class KdbxFile
         }
 
         $transformedKey = self::transformKey($key, $header);
-        $cipher = Cipher::Create(
+        $cipher = Cipher::create(
             $cipherMethod,
             $transformedKey,
             $header->encryptionIV
@@ -339,7 +339,7 @@ class KdbxFile
     private static function transformKey(Key $key, KdbxHeader $header)
     {
         $keyHash = $key->getHash();
-        $cipher = Cipher::Create(
+        $cipher = Cipher::create(
             'aes-256-ecb',
             $header->transformSeed,
             '',

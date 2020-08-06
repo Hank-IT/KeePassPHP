@@ -67,11 +67,9 @@ class Entry
      *
      * @return string A non-null string, containing the value of the field.
      */
-    public function getStringField($key)
+    public function getStringField(string $key): string
     {
-        return isset($this->stringFields[$key])
-            ? $this->stringFields[$key]->getPlainString()
-            : '';
+        return isset($this->stringFields[$key]) ? $this->stringFields[$key]->getPlainString() : '';
     }
 
     /**
@@ -79,7 +77,7 @@ class Entry
      *
      * @return array A list containing custom fields.
      */
-    public function listCustomFields()
+    public function listCustomFields(): array
     {
         $standard = [Database::KEY_PASSWORD, Database::KEY_TITLE, Database::KEY_USERNAME, Database::KEY_URL, Database::KEY_NOTES];
 
@@ -91,14 +89,17 @@ class Entry
      *
      * @param static|null $entry An Entry instance, possibly null (it is then ignored).
      */
-    private function addHistoryEntry($entry)
+    protected function addHistoryEntry(?self $entry): void
     {
-        if ($entry != null) {
-            if ($this->history == null) {
-                $this->history = [];
-            }
-            $this->history[] = $entry;
+        if (is_null($entry)) {
+            return;
         }
+
+        if (is_null($this->history)) {
+            $this->history = [];
+        }
+
+        $this->history[] = $entry;
     }
 
     /**
@@ -106,7 +107,7 @@ class Entry
      *
      * @param ProtectedXMLReader $reader A XML reader located at a string element node.
      */
-    private function readString(ProtectedXMLReader $reader)
+    private function readString(ProtectedXMLReader $reader): void
     {
         $d = $reader->depth();
         $key = null;
@@ -136,42 +137,50 @@ class Entry
      *
      * @return array An array containing this entry.
      */
-    public function toArray(Filter $filter)
+    public function toArray(Filter $filter): array
     {
         $result = [];
-        if ($this->uuid != null) {
+        if (! is_null($this->uuid)) {
             $result[Database::XML_UUID] = $this->uuid;
         }
-        if ($this->icon != null && $filter->acceptIcons()) {
+
+        if (! is_null($this->icon) && $filter->acceptIcons()) {
             $result[Database::XML_ICONID] = $this->icon;
         }
-        if ($this->customIcon != null && $filter->acceptIcons()) {
+
+        if (! is_null($this->customIcon) && $filter->acceptIcons()) {
             $result[Database::XML_CUSTOMICONUUID] = $this->customIcon;
         }
-        if ($this->tags != null && $filter->acceptTags()) {
+
+        if (! is_null($this->tags) && $filter->acceptTags()) {
             $result[Database::XML_TAGS] = $this->tags;
         }
+
         $stringFields = [];
-        if ($this->password != null && $filter->acceptPasswords()) {
+        if (! is_null($this->password) && $filter->acceptPasswords()) {
             $stringFields[Database::KEY_PASSWORD] = $this->password->getPlainString();
         }
-        if (!empty($this->stringFields)) {
+
+        if (! empty($this->stringFields)) {
             foreach ($this->stringFields as $key => &$value) {
                 if ($filter->acceptStrings($key)) {
                     $stringFields[$key] = $value->getPlainString();
                 }
             }
         }
-        if (!empty($stringFields)) {
+
+        if (! empty($stringFields)) {
             $result[Database::KEY_STRINGFIELDS] = $stringFields;
         }
-        if ($this->history != null) {
+
+        if (is_null($this->history)) {
             $history = [];
             foreach ($this->history as &$entry) {
                 if ($filter->acceptHistoryEntry($entry)) {
                     $history[] = $entry->toArray($filter);
                 }
             }
+
             if (!empty($history)) {
                 $result[Database::XML_HISTORY] = $history;
             }
@@ -185,11 +194,11 @@ class Entry
      * toArray() of another Entry instance.
      *
      * @param array $array An array created by the method toArray().
-     * @param $string version The version of the array format.
+     * @param string version The version of the array format.
      *
      * @return static|null A Entry instance if the parsing went okay, null otherwise.
      */
-    public static function loadFromArray(array $array, $version)
+    public static function loadFromArray(array $array, string $version): ?self
     {
         if ($array == null) {
             return null;

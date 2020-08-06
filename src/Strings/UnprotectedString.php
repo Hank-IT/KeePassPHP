@@ -11,11 +11,11 @@ use KeePassPHP\Contracts\BoxedString;
  */
 class UnprotectedString implements BoxedString
 {
-    private $_string;
+    protected $string;
 
-    public function __construct($string)
+    public function __construct(string $string)
     {
-        $this->_string = $string;
+        $this->string = $string;
     }
 
     /**
@@ -23,8 +23,8 @@ class UnprotectedString implements BoxedString
      *
      * @return string a string.
      */
-    public function getPlainString()
+    public function getPlainString(): string
     {
-        return $this->_string;
+        return $this->string;
     }
 }

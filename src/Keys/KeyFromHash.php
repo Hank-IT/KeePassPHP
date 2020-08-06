@@ -16,11 +16,11 @@ class KeyFromHash implements Key
     /**
      * Stores the given hash string.
      *
-     * @param string $h A raw hash string.
+     * @param string $hash A raw hash string.
      */
-    public function __construct($h)
+    public function __construct(string $hash)
     {
-        $this->hash = $h;
+        $this->hash = $hash;
     }
 
     /**
@@ -28,7 +28,7 @@ class KeyFromHash implements Key
      *
      * @return string A raw hash string.
      */
-    public function getHash()
+    public function getHash(): string
     {
         return $this->hash;
     }

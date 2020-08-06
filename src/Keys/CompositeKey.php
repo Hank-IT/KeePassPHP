@@ -12,8 +12,8 @@ use KeePassPHP\Contracts\Key;
  */
 class CompositeKey implements Key
 {
-    private $_keys;
-    private $_hashAlgo;
+    protected $keys;
+    protected $hashAlgo;
 
     /**
      * Constructs a new CompositeKey instance using $hashAlgo to hash all
@@ -23,8 +23,8 @@ class CompositeKey implements Key
      */
     public function __construct($hashAlgo)
     {
-        $this->_keys = [];
-        $this->_hashAlgo = $hashAlgo;
+        $this->keys = [];
+        $this->hashAlgo = $hashAlgo;
     }
 
     /**
@@ -34,7 +34,7 @@ class CompositeKey implements Key
      */
     public function addKey(Key $key)
     {
-        array_push($this->_keys, $key->getHash());
+        array_push($this->keys, $key->getHash());
     }
 
     /**
@@ -42,10 +42,10 @@ class CompositeKey implements Key
      *
      * @return string A raw hash string.
      */
-    public function getHash()
+    public function getHash(): string
     {
-        $h = hash_init($this->_hashAlgo);
-        foreach ($this->_keys as &$v) {
+        $h = hash_init($this->hashAlgo);
+        foreach ($this->keys as &$v) {
             hash_update($h, $v);
         }
         $r = hash_final($h, true);

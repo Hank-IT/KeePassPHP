@@ -49,20 +49,22 @@ class Database
     const GROUPS = 'Groups';
     const ENTRIES = 'Entries';
 
-    private $_name;
-    private $_groups;
+    protected $name;
+    protected $groups;
+
     /** Associative array (icon uuid in base64 => icon data in base64) keeping
      * the data of all custom icons. */
-    private $_customIcons;
+    protected $customIcons;
+
     /** Header hash registered in this database. */
-    private $_headerHash;
+    protected $headerHash;
 
     private function __construct()
     {
-        $this->_name = null;
-        $this->_groups = null;
-        $this->_customIcons = null;
-        $this->_headerHash = null;
+        $this->name = null;
+        $this->groups = null;
+        $this->customIcons = null;
+        $this->headerHash = null;
     }
 
     /**
@@ -70,9 +72,9 @@ class Database
      *
      * @return string This database name.
      */
-    public function getName()
+    public function getName(): string
     {
-        return $this->_name;
+        return $this->name;
     }
 
     /**
@@ -80,9 +82,9 @@ class Database
      *
      * @return array An array of Group instances.
      */
-    public function getGroups()
+    public function getGroups(): array
     {
-        return $this->_groups;
+        return $this->groups;
     }
 
     /**
@@ -92,10 +94,10 @@ class Database
      *
      * @return string|null A custom icon data in base64 if it exists, null otherwise.
      */
-    public function getCustomIcon($uuid)
+    public function getCustomIcon(string $uuid): ?string
     {
-        return $this->_customIcons == null ? null
-            : 'data:image/png;base64,'.$this->_customIcons[$uuid];
+        return $this->customIcons == null ? null
+            : 'data:image/png;base64,'.$this->customIcons[$uuid];
     }
 
     /**
@@ -105,14 +107,15 @@ class Database
      *
      * @return string|null The decrypted password if the entry exists, null otherwise.
      */
-    public function getPassword($uuid)
+    public function getPassword(string $uuid): ?string
     {
-        if ($this->_groups != null) {
-            foreach ($this->_groups as &$group) {
-                $value = $group->getPassword($uuid);
-                if ($value != null) {
-                    return $value->getPlainString();
-                }
+        if (is_null($this->groups)) {
+            return null;
+        }
+
+        foreach ($this->groups as &$group) {
+            if (! is_null($value = $group->getPassword($uuid))) {
+                return $value->getPlainString();
             }
         }
 
@@ -129,14 +132,15 @@ class Database
      *                     an empty string if the entry exists but the string field,
      *                     null if entry does not exists.
      */
-    public function getStringField($uuid, $key)
+    public function getStringField(string $uuid, string $key): ?string
     {
-        if ($this->_groups != null) {
-            foreach ($this->_groups as &$group) {
-                $value = $group->getStringField($uuid, $key);
-                if ($value != null) {
-                    return $value;
-                }
+        if (is_null($this->groups)) {
+            return null;
+        }
+
+        foreach ($this->groups as &$group) {
+            if (! is_null( $value = $group->getStringField($uuid, $key))) {
+                return $value;
             }
         }
 
@@ -150,14 +154,15 @@ class Database
      *
      * @return string|null A list of custom fields if the entry exists, null if entry does not exists.
      */
-    public function listCustomFields($uuid)
+    public function listCustomFields(string $uuid): ?string
     {
-        if ($this->_groups != null) {
-            foreach ($this->_groups as &$group) {
-                $value = $group->listCustomFields($uuid);
-                if ($value !== null) { /* strict compare */
-                    return $value;
-                }
+        if (is_null($this->groups)) {
+            return null;
+        }
+
+        foreach ($this->groups as &$group) {
+            if (! is_null($value = $group->listCustomFields($uuid))) {
+                return $value;
             }
         }
 
@@ -170,11 +175,12 @@ class Database
      *
      * @param ProtectedXMLReader $reader A ProtectedXMLReader instance located at a custom icon element node.
      */
-    private function parseCustomIcon(ProtectedXMLReader $reader)
+    protected function parseCustomIcon(ProtectedXMLReader $reader): void
     {
         $uuid = null;
         $data = null;
         $d = $reader->depth();
+
         while ($reader->read($d)) {
             if ($reader->isElement(self::XML_UUID)) {
                 $uuid = $reader->readTextInside();
@@ -182,11 +188,12 @@ class Database
                 $data = $reader->readTextInside();
             }
         }
+
         if (!empty($uuid) && !empty($data)) {
-            if ($this->_customIcons == null) {
-                $this->_customIcons = [];
+            if ($this->customIcons == null) {
+                $this->customIcons = [];
             }
-            $this->_customIcons[$uuid] = $data;
+            $this->customIcons[$uuid] = $data;
         }
     }
 
@@ -195,14 +202,17 @@ class Database
      *
      * @param Group|null $group A Group instance, possibly null (it is then ignored).
      */
-    private function addGroup($group)
+    protected function addGroup(?Group $group): void
     {
-        if ($group != null) {
-            if ($this->_groups == null) {
-                $this->_groups = [];
-            }
-            $this->_groups[] = $group;
+        if (is_null($group)) {
+            return;
         }
+
+        if (is_null($this->groups)) {
+            $this->groups = [];
+        }
+
+        $this->groups[] = $group;
     }
 
     /**
@@ -212,7 +222,7 @@ class Database
      *
      * @param ProtectedXMLReader $reader A XML reader.
      */
-    private function parseXML(ProtectedXMLReader $reader)
+    protected function parseXML(ProtectedXMLReader $reader): void
     {
         $d = $reader->depth();
         while ($reader->read($d)) {
@@ -220,9 +230,9 @@ class Database
                 $metaD = $reader->depth();
                 while ($reader->read($metaD)) {
                     if ($reader->isElement(self::XML_HEADERHASH)) {
-                        $this->_headerHash = base64_decode($reader->readTextInside());
+                        $this->headerHash = base64_decode($reader->readTextInside());
                     } elseif ($reader->isElement(self::XML_DATABASENAME)) {
-                        $this->_name = $reader->readTextInside();
+                        $this->name = $reader->readTextInside();
                     } elseif ($reader->isElement(self::XML_CUSTOMICONS)) {
                         $iconsD = $reader->depth();
                         while ($reader->read($iconsD)) {
@@ -247,32 +257,36 @@ class Database
      * Creates an array describing this database (with respect to the filter).
      * This array can be safely serialized to json after.
      *
-     * @param Filter $filter A filter to select the data that is actually copied to
+     * @param Filter|null $filter A filter to select the data that is actually copied to
      *                       the array (if null, it will serialize everything except
      *                       from passowrds).
      *
      * @return array An array containing this database (except passwords).
      */
-    public function toArray(Filter $filter = null)
+    public function toArray(Filter $filter = null): array
     {
-        if ($filter == null) {
+        if (is_null($filter)) {
             $filter = new AllExceptFromPasswordsFilter();
         }
+
         $result = [];
-        if ($this->_name != null) {
-            $result[self::XML_DATABASENAME] = $this->_name;
+        if (! is_null($this->name)) {
+            $result[self::XML_DATABASENAME] = $this->name;
         }
-        if ($this->_customIcons != null && $filter->acceptIcons()) {
-            $result[self::XML_CUSTOMICONS] = $this->_customIcons;
+
+        if (! is_null($this->customIcons) && $filter->acceptIcons()) {
+            $result[self::XML_CUSTOMICONS] = $this->customIcons;
         }
-        if ($this->_groups != null) {
+
+        if (! is_null($this->groups)) {
             $groups = [];
-            foreach ($this->_groups as &$group) {
+            foreach ($this->groups as &$group) {
                 if ($filter->acceptGroup($group)) {
                     $groups[] = $group->toArray($filter);
                 }
             }
-            if (!empty($groups)) {
+
+            if (! empty($groups)) {
                 $result[self::GROUPS] = $groups;
             }
         }
@@ -288,29 +302,33 @@ class Database
      * @param string $version The version of the array format.
      * @param string &$error  A string that will receive a message in case of error.
      *
-     * @return static A Database instance if the parsing went okay, null otherwise.
+     * @return self|null A Database instance if the parsing went okay, null otherwise.
      */
-    public static function loadFromArray(array $array, $version, &$error)
+    public static function loadFromArray(array $array, $version, &$error): ?self
     {
         if ($array == null) {
             $error = 'Database array load: array is empty.';
 
             return null;
         }
+
         $db = new Database();
-        $db->_name = self::getIfSet($array, self::XML_DATABASENAME);
-        $db->_customIcons = self::getIfSet($array, self::XML_CUSTOMICONS);
+        $db->name = self::getIfSet($array, self::XML_DATABASENAME);
+        $db->customIcons = self::getIfSet($array, self::XML_CUSTOMICONS);
         $groups = self::getIfSet($array, self::GROUPS);
+
         if (!empty($groups)) {
             foreach ($groups as &$group) {
                 $db->addGroup(Group::loadFromArray($group, $version));
             }
         }
-        if ($db->_name == null && $db->_groups == null) {
+
+        if (is_null($db->name) && is_null($db->groups)) {
             $error = 'Database array load: empty database.';
 
             return null;
         }
+
         $error = null;
 
         return $db;
@@ -324,35 +342,36 @@ class Database
      * @param RandomStream $randomStream A RandomStream instance to decrypt protected data.
      * @param string       &$error       A string that will receive a message in case of error.
      *
-     * @return Database A Database instance if the parsing went okay, null otherwise.
+     * @return self|null A Database instance if the parsing went okay, null otherwise.
      */
-    public static function loadFromXML(
-        $xml,
-        RandomStream $randomStream,
-        &$error
-    )
+    public static function loadFromXML($xml, RandomStream $randomStream, &$error): ?self
     {
         $reader = new ProtectedXMLReader($randomStream);
-        if (!$reader->XML($xml) || !$reader->read(-1)) {
+
+        if (! $reader->XML($xml) || ! $reader->read(-1)) {
             $error = 'Database XML load: cannot parse the XML string.';
             $reader->close();
 
             return null;
         }
-        if (!$reader->isElement(self::XML_KEEPASSFILE)) {
+
+        if (! $reader->isElement(self::XML_KEEPASSFILE)) {
             $error = "Database XML load: the root element is not '".self::XML_KEEPASSFILE."'.";
             $reader->close();
 
             return null;
         }
+
         $db = new Database();
         $db->parseXML($reader);
         $reader->close();
-        if ($db->_name == null && $db->_groups == null) {
+
+        if (is_null($db->name) && is_null($db->groups)) {
             $error = 'Database XML load: empty database.';
 
             return null;
         }
+
         $error = null;
 
         return $db;
@@ -365,23 +384,23 @@ class Database
      * @param Key    $key    A Key instance to use to decrypt the .kdbx file.
      * @param string &$error A string that will receive a message in case of error.
      *
-     * @return Database|null A Database instance if the parsing went okay, null otherwise.
+     * @return self|null A Database instance if the parsing went okay, null otherwise.
      */
-    public static function loadFromKdbx(Reader $reader, Key $key, &$error)
+    public static function loadFromKdbx(Reader $reader, Key $key, &$error): ?self
     {
         $kdbx = KdbxFile::decrypt($reader, $key, $error);
-        if ($kdbx == null) {
+
+        if (is_null($kdbx)) {
             return null;
         }
-        $db = self::loadFromXML(
-            $kdbx->getContent(),
-            $kdbx->getRandomStream(),
-            $error
-        );
-        if ($db == null) {
+
+        $db = self::loadFromXML($kdbx->getContent(), $kdbx->getRandomStream(), $error);
+
+        if (is_null($db)) {
             return null;
         }
-        if ($db->_headerHash !== $kdbx->getHeaderHash()) {
+
+        if ($db->headerHash !== $kdbx->getHeaderHash()) {
             $error = 'Database Kdbx load: header hash is not correct.';
 
             return null;

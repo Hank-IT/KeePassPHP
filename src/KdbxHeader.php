@@ -294,7 +294,7 @@ class KdbxHeader
                     $header->randomStream= self::RANDOMSTREAM_ARC4;*/
             }
         }
-        $header->headerHash = $dreader->GetDigest();
+        $header->headerHash = $dreader->getDigest();
         $error = null;
 
         return $header;

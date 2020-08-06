@@ -16,5 +16,5 @@ interface RandomStream
      *
      * @return string A $n-long string.
      */
-    public function getNextBytes($n);
+    public function getNextBytes(int $n): string;
 }

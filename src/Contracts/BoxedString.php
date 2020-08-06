@@ -14,5 +14,5 @@ interface BoxedString
      *
      * @return string a string.
      */
-    public function getPlainString();
+    public function getPlainString(): string;
 }

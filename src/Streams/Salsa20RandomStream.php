@@ -8,9 +8,9 @@ use KeePassPHP\Contracts\RandomStream;
 
 class Salsa20RandomStream implements RandomStream
 {
-    private $_state;
-    private $_output;
-    private $_outputPos;
+    protected $state;
+    protected $output;
+    protected $outputPos;
 
     const STATE_LEN = 32;
     const KEY_LEN = 32;
@@ -23,9 +23,9 @@ class Salsa20RandomStream implements RandomStream
      * @param string $key The 32-byte-long string to use as key.
      * @param string $iv  The 8-byte-long string to use as initialization vector.
      *
-     * @return static A new Salsa20Stream instance, of null if $key or $iv do not have a suitable length.
+     * @return self|null A new Salsa20Stream instance, of null if $key or $iv do not have a suitable length.
      */
-    public static function create($key, $iv)
+    public static function create(string $key, string $iv): ?self
     {
         if (strlen($key) != static::KEY_LEN || strlen($iv) != static::IV_LEN) {
             return null;
@@ -34,55 +34,55 @@ class Salsa20RandomStream implements RandomStream
         return new static($key, $iv);
     }
 
-    protected function __construct($key, $iv)
+    protected function __construct(string $key, string $iv)
     {
-        $this->_state = [];
+        $this->state = [];
         for ($i = 0; $i < self::STATE_LEN; $i++) {
-            $this->_state[$i] = 0;
+            $this->state[$i] = 0;
         }
 
-        $this->_output = [];
+        $this->output = [];
         for ($i = 0; $i < self::OUTPUT_LEN; $i++) {
-            $this->_output[$i] = 0;
+            $this->output[$i] = 0;
         }
 
-        $this->_outputPos = self::OUTPUT_LEN;
+        $this->outputPos = self::OUTPUT_LEN;
         $this->keySetup(array_values(unpack('v16', $key)));
         $this->ivSetup(array_values(unpack('v4', $iv)));
     }
 
-    private function keySetup(array $key)
+    protected function keySetup(array $key)
     {
         for ($i = 0; $i < 4; $i++) {
             $j = 2 * $i;
-            $this->_state[2 * $i + 2] = $key[$j];
-            $this->_state[2 * $i + 3] = $key[$j + 1];
-            $this->_state[2 * $i + 22] = $key[$j + 8];
-            $this->_state[2 * $i + 23] = $key[$j + 9];
+            $this->state[2 * $i + 2] = $key[$j];
+            $this->state[2 * $i + 3] = $key[$j + 1];
+            $this->state[2 * $i + 22] = $key[$j + 8];
+            $this->state[2 * $i + 23] = $key[$j + 9];
         }
-        $this->_state[0] = 0x7865;
-        $this->_state[1] = 0x6170;
-        $this->_state[10] = 0x646E;
-        $this->_state[11] = 0x3320;
-        $this->_state[20] = 0x2D32;
-        $this->_state[21] = 0x7962;
-        $this->_state[30] = 0x6574;
-        $this->_state[31] = 0x6B20;
+        $this->state[0] = 0x7865;
+        $this->state[1] = 0x6170;
+        $this->state[10] = 0x646E;
+        $this->state[11] = 0x3320;
+        $this->state[20] = 0x2D32;
+        $this->state[21] = 0x7962;
+        $this->state[30] = 0x6574;
+        $this->state[31] = 0x6B20;
     }
 
-    private function ivSetup(array $iv)
+    protected function ivSetup(array $iv)
     {
-        $this->_state[12] = $iv[0];
-        $this->_state[13] = $iv[1];
-        $this->_state[14] = $iv[2];
-        $this->_state[15] = $iv[3];
-        $this->_state[16] = 0;
-        $this->_state[17] = 0;
-        $this->_state[18] = 0;
-        $this->_state[19] = 0;
+        $this->state[12] = $iv[0];
+        $this->state[13] = $iv[1];
+        $this->state[14] = $iv[2];
+        $this->state[15] = $iv[3];
+        $this->state[16] = 0;
+        $this->state[17] = 0;
+        $this->state[18] = 0;
+        $this->state[19] = 0;
     }
 
-    private static function addRotXor(&$x, $i, $j, $b, $target)
+    protected static function addRotXor(&$x, $i, $j, $b, $target)
     {
         $s = $x[2 * $i] + $x[2 * $j];
         $r = $s >> 16;
@@ -97,11 +97,11 @@ class Salsa20RandomStream implements RandomStream
         $x[2 * $target + 1 - $m] = $x[2 * $target + 1 - $m] ^ $nt;
     }
 
-    private function nextOutput()
+    protected function nextOutput()
     {
         $x = [];
         for ($i = 0; $i < self::STATE_LEN; $i++) {
-            $x[$i] = $this->_state[$i];
+            $x[$i] = $this->state[$i];
         }
 
         for ($i = 0; $i < 10; $i++) {
@@ -140,9 +140,9 @@ class Salsa20RandomStream implements RandomStream
         }
 
         for ($i = 0; $i < self::STATE_LEN; $i += 2) {
-            $s = $x[$i] + $this->_state[$i];
+            $s = $x[$i] + $this->state[$i];
             $x[$i] = $s & 0xFFFF;
-            $x[$i + 1] = ($x[$i + 1] + $this->_state[$i + 1] + ($s >> 16)) & 0xFFFF;
+            $x[$i + 1] = ($x[$i + 1] + $this->state[$i + 1] + ($s >> 16)) & 0xFFFF;
         }
 
         $out = '';
@@ -150,18 +150,18 @@ class Salsa20RandomStream implements RandomStream
             $out .= pack('v', $x[$i]);
         }
 
-        $this->_output = $out;
-        $this->_outputPos = 0;
-        $this->_state[16]++;
-        if ($this->_state[16] == 0xFFFF) {
-            $this->_state[16] = 0;
-            $this->_state[17]++;
-            if ($this->_state[17] == 0xFFFF) {
-                $this->_state[17] = 0;
-                $this->_state[18]++;
-                if ($this->_state[18] == 0xFFFF) {
-                    $this->_state[18] = 0;
-                    $this->_state[19]++;
+        $this->output = $out;
+        $this->outputPos = 0;
+        $this->state[16]++;
+        if ($this->state[16] == 0xFFFF) {
+            $this->state[16] = 0;
+            $this->state[17]++;
+            if ($this->state[17] == 0xFFFF) {
+                $this->state[17] = 0;
+                $this->state[18]++;
+                if ($this->state[18] == 0xFFFF) {
+                    $this->state[18] = 0;
+                    $this->state[19]++;
                 }
             }
         }
@@ -174,19 +174,19 @@ class Salsa20RandomStream implements RandomStream
      *
      * @return string A $n-long string.
      */
-    public function getNextBytes($n)
+    public function getNextBytes(int $n): string
     {
         $s = '';
         $nRem = $n;
         while ($nRem > 0) {
-            if ($this->_outputPos == 64) {
+            if ($this->outputPos == 64) {
                 $this->nextOutput();
             }
-            $nCopy = min(64 - $this->_outputPos, $nRem);
-            $s .= substr($this->_output, $this->_outputPos, $nCopy);
+            $nCopy = min(64 - $this->outputPos, $nRem);
+            $s .= substr($this->output, $this->outputPos, $nCopy);
 
             $nRem -= $nCopy;
-            $this->_outputPos += $nCopy;
+            $this->outputPos += $nCopy;
         }
 
         return $s;

@@ -14,5 +14,5 @@ interface Key
      *
      * @return string A raw hash string.
      */
-    public function getHash();
+    public function getHash(): string;
 }

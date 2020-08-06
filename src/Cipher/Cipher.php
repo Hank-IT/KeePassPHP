@@ -16,10 +16,10 @@ namespace KeePassPHP\Cipher;
  */
 abstract class Cipher
 {
-    protected $_method;
-    protected $_key;
-    protected $_iv;
-    protected $_padding;
+    protected $method;
+    protected $key;
+    protected $iv;
+    protected $padding;
 
     /** Add no padding (the data must be of correct length). */
     const PADDING_NONE = 0;
@@ -35,7 +35,7 @@ abstract class Cipher
      * @param string $iv      A binary string used as initialization vector (must be of correct length), or "" if none are needed.
      * @param int    $padding The type of padding to use. Must be one of the constants self::PADDING_*.
      */
-    protected function __construct($method, $key, $iv, $padding)
+    protected function __construct(string $method, string $key, string $iv, int $padding)
     {
         $this->setKey($key);
         $this->setIV($iv);
@@ -48,9 +48,9 @@ abstract class Cipher
      *
      * @param string $method One of the OpenSSL ciphers constants.
      */
-    public function setMethod($method)
+    public function setMethod(string $method): void
     {
-        $this->_method = $method;
+        $this->method = $method;
     }
 
     /**
@@ -58,9 +58,9 @@ abstract class Cipher
      *
      * @param string $key A binary string (must be of correct length).
      */
-    public function setKey($k)
+    public function setKey(string $key): void
     {
-        $this->_key = $k;
+        $this->key = $key;
     }
 
     /**
@@ -69,49 +69,48 @@ abstract class Cipher
      * @param string $iv A binary string (must be of correct length), or "" if none
      *                   are needed.
      */
-    public function setIV($iv)
+    public function setIV(string $iv): void
     {
-        $this->_iv = $iv;
+        $this->iv = $iv;
     }
 
     /**
      * Sets the padding mode to use.
      *
-     * @param int $padding A padding type. Must be one of the constants
-     *                     self::PADDING_*.
+     * @param int $padding A padding type. Must be one of the constants self::PADDING_*.
      */
-    public function setPadding($padding)
+    public function setPadding(int $padding): void
     {
-        $this->_padding = $padding;
+        $this->padding = $padding;
     }
 
     /**
      * Encrypts $s with this cipher instance method and key.
      *
-     * @param string $s A raw string to encrypt.
+     * @param string $string A raw string to encrypt.
      *
-     * @return string The result as a raw string, or null in case of error.
+     * @return string|null The result as a raw string, or null in case of error.
      */
-    abstract public function encrypt($s);
+    abstract public function encrypt(string $string): ?string;
 
     /**
      * Performs $r rounds of encryption on $s with this cipher instance.
      *
-     * @param string $s A raw string, that must have a correct length to be encrypted with no padding.
-     * @param int    $r The number of encryption rounds to perform.
+     * @param string $string A raw string, that must have a correct length to be encrypted with no padding.
+     * @param int    $rounds The number of encryption rounds to perform.
      *
      * @return string|null The result as a raw string, or null in case of error.
      */
-    abstract public function encryptManyTimes($s, $r);
+    abstract public function encryptManyTimes(string $string, int $rounds): ?string;
 
     /**
      * Decrypts $s with this cipher instance method and key.
      *
-     * @param string $s A raw string to decrypt.
+     * @param string $string A raw string to decrypt.
      *
      * @return string|null The result as a raw string, or null in case of error.
      */
-    abstract public function decrypt($s);
+    abstract public function decrypt(string $string): ?string;
 
     /**
      * Creates a new Cipher instance of one of the implementing classes,
@@ -121,13 +120,13 @@ abstract class Cipher
      * encrypting or decrypting, the operation will fail miserably.
      *
      * @param string $method  The OpenSSL method to use.
-     * @param string $key     The key, used for decryption as well as encryption.
+     * @param string|null $key     The key, used for decryption as well as encryption.
      * @param string $iv      The initialization vector, or "" if none are needed.
      * @param int    $padding The type of padding to use. Must be one of the constants elf::PADDING_*.
      *
      * @return static|null A Cipher instance, or null if no suitable crypto library is loaded.
      */
-    public static function Create($method, $key = null, $iv = '', $padding = self::PADDING_PKCS7)
+    public static function create(string $method, ?string $key = null, string $iv = '', int $padding = self::PADDING_PKCS7)
     {
         return new CipherOpenSSL($method, $key, $iv, $padding);
     }

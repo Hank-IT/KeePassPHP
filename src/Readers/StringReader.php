@@ -9,9 +9,9 @@ namespace KeePassPHP\Readers;
  */
 class StringReader extends Reader
 {
-    private $_str;
-    private $_n;
-    private $_pt;
+    protected $str;
+    protected $n;
+    protected $pt;
 
     /**
      * Constructs a new StringReader instance that reads the string $s.
@@ -20,45 +20,45 @@ class StringReader extends Reader
      */
     public function __construct($s)
     {
-        $this->_str = $s;
-        $this->_pt = 0;
-        $this->_n = strlen($s);
+        $this->str = $s;
+        $this->pt = 0;
+        $this->n = strlen($s);
     }
 
-    public function read($n)
+    public function read($n): ?string
     {
         if (!$this->canRead()) {
             return null;
         }
 
-        $t = min($n, $this->_n - $this->_pt);
-        $res = substr($this->_str, $this->_pt, $t);
-        $this->_pt += $t;
+        $t = min($n, $this->n - $this->pt);
+        $res = substr($this->str, $this->pt, $t);
+        $this->pt += $t;
 
         return $res;
     }
 
-    public function canRead()
+    public function canRead(): bool
     {
-        return $this->_pt < $this->_n;
+        return $this->pt < $this->n;
     }
 
-    public function readToTheEnd()
+    public function readToTheEnd(): ?string
     {
         if (!$this->canRead()) {
             return null;
         }
 
-        $res = substr($this->_str, $this->_pt);
-        $this->_pt = $this->_n;
+        $res = substr($this->str, $this->pt);
+        $this->pt = $this->n;
 
         return $res;
     }
 
-    public function close()
+    public function close(): void
     {
-        $this->_str = null;
-        $this->_n = 0;
-        $this->_pt = 0;
+        $this->str = null;
+        $this->n = 0;
+        $this->pt = 0;
     }
 }

@@ -11,13 +11,14 @@ use KeePassPHP\Contracts\BoxedString;
  */
 class ProtectedString implements BoxedString
 {
-    private $_string;
-    private $_random;
+    protected $string;
+    protected $random;
 
-    public function __construct($string, $random)
+    public function __construct(string $string, string $random)
     {
-        $this->_string = $string;
-        $this->_random = $random;
+        $this->string = $string;
+
+        $this->random = $random;
     }
 
     /**
@@ -25,8 +26,8 @@ class ProtectedString implements BoxedString
      *
      * @return string a string.
      */
-    public function getPlainString()
+    public function getPlainString(): string
     {
-        return $this->_string ^ $this->_random;
+        return $this->string ^ $this->random;
     }
 }

@@ -30,8 +30,7 @@ class KeyFromFile extends KeyFromHash
      */
     public function __construct($content)
     {
-        $this->isParsed = $this->tryParseXML($content) ||
-            $this->tryParse($content);
+        $this->isParsed = $this->tryParseXML($content) || $this->tryParse($content);
     }
 
     /**
@@ -41,13 +40,14 @@ class KeyFromFile extends KeyFromHash
      *
      * @return bool in case of success, false otherwise.
      */
-    private function tryParse($content)
+    protected function tryParse($content)
     {
         if (strlen($content) == 32) {
             $this->hash = $content;
 
             return true;
         }
+
         if (strlen($content) == 64) {
             $this->hash = hex2bin($content);
 
@@ -64,12 +64,14 @@ class KeyFromFile extends KeyFromHash
      *
      * @return bool in case of success, false otherwise.
      */
-    private function tryParseXML($content)
+    protected function tryParseXML($content)
     {
         $xml = new ProtectedXMLReader(null);
-        if (!$xml->XML($content) || !$xml->read(-1)) {
+
+        if (! $xml->XML($content) || ! $xml->read(-1)) {
             return false;
         }
+
         if ($xml->isElement(self::XML_ROOT)) {
             $d = $xml->depth();
             while ($xml->read($d)) {

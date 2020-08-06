@@ -15,7 +15,7 @@ class KeyFromPassword extends KeyFromHash
      * @param string $pwd      A string.
      * @param string $hashAlgo A hash algorithm name.
      */
-    public function __construct($pwd, $hashAlgo)
+    public function __construct(string $pwd, string $hashAlgo)
     {
         parent::__construct(hash($hashAlgo, $pwd, true));
     }

@@ -18,7 +18,7 @@ abstract class Reader
      *
      * @return bool if more bytes can be read, false otherwise.
      */
-    abstract public function canRead();
+    abstract public function canRead(): bool;
 
     /**
      * Tries to read $n bytes from this instance. This method will read as many
@@ -28,7 +28,7 @@ abstract class Reader
      *
      * @return string a string containing at most $n bytes, or null if no more bytes can be read.
      */
-    abstract public function read($n);
+    abstract public function read($n): ?string;
 
     /**
      * Reads all remaining bytes from this instance.
@@ -36,12 +36,12 @@ abstract class Reader
      * @return string|null a string containing all remaining bytes that this Read can read,
      *                or null if no more bytes can be read.
      */
-    abstract public function readToTheEnd();
+    abstract public function readToTheEnd(): ?string;
 
     /**
      * Closes this instance, possibly dismissing the resources it was using.
      */
-    abstract public function close();
+    abstract public function close(): void;
 
     /**
      * Tries to read $n bytes from this instance, and return them as an
@@ -51,7 +51,7 @@ abstract class Reader
      *
      * @return int at most $n bytes encoded into one integer, or 0 if no more bytes can be read.
      */
-    public function readNumber($n)
+    public function readNumber($n): int
     {
         $s = $this->read($n);
         $l = strlen($s);
@@ -68,7 +68,7 @@ abstract class Reader
      *
      * @return int one read byte as an integer, or 0 if no more bytes can be read.
      */
-    public function readByte()
+    public function readByte(): int
     {
         $s = $this->read(1);
 

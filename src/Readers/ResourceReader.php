@@ -43,7 +43,7 @@ class ResourceReader extends Reader
         return null;
     }
 
-    public function read($n)
+    public function read($n): ?string
     {
         if ($this->canRead()) {
             $s = fread($this->_res, $n);
@@ -55,7 +55,7 @@ class ResourceReader extends Reader
         return null;
     }
 
-    public function readToTheEnd()
+    public function readToTheEnd(): ?string
     {
         if (!$this->canRead()) {
             return null;
@@ -69,12 +69,12 @@ class ResourceReader extends Reader
         return $r;
     }
 
-    public function canRead()
+    public function canRead(): bool
     {
         return !feof($this->_res);
     }
 
-    public function close()
+    public function close(): void
     {
         fclose($this->_res);
     }

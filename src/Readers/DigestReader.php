@@ -10,8 +10,8 @@ namespace KeePassPHP\Readers;
  */
 class DigestReader extends Reader
 {
-    private $_base;
-    private $_resource;
+    protected $base;
+    protected $resource;
 
     /**
      * Constructs a new DigestReader implementation, reading from the Reader
@@ -22,15 +22,16 @@ class DigestReader extends Reader
      */
     public function __construct(Reader $reader, $hashAlgo)
     {
-        $this->_base = $reader;
-        $this->_resource = hash_init($hashAlgo);
+        $this->base = $reader;
+        $this->resource = hash_init($hashAlgo);
     }
 
-    public function read($n)
+    public function read($n): ?string
     {
-        $s = $this->_base->read($n);
+        $s = $this->base->read($n);
+
         if ($s !== null) {
-            hash_update($this->_resource, $s);
+            hash_update($this->resource, $s);
 
             return $s;
         }
@@ -38,9 +39,10 @@ class DigestReader extends Reader
         return null;
     }
 
-    public function readToTheEnd()
+    public function readToTheEnd(): ?string
     {
-        $s = $this->_base->readToTheEnd();
+        $s = $this->base->readToTheEnd();
+
         if ($s !== null) {
             hash_update($$this->_resource, $s);
 
@@ -50,14 +52,14 @@ class DigestReader extends Reader
         return null;
     }
 
-    public function canRead()
+    public function canRead(): bool
     {
-        return $this->_base->canRead();
+        return $this->base->canRead();
     }
 
-    public function close()
+    public function close(): void
     {
-        $this->_base->close();
+        $this->base->close();
     }
 
     /**
@@ -65,8 +67,8 @@ class DigestReader extends Reader
      *
      * @return string A raw hash string.
      */
-    public function GetDigest()
+    public function getDigest(): string
     {
-        return hash_final($this->_resource, true);
+        return hash_final($this->resource, true);
     }
 }

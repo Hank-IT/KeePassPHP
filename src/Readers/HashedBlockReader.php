@@ -16,14 +16,14 @@ namespace KeePassPHP\Readers;
  */
 class HashedBlockReader extends Reader
 {
-    private $_base;
-    private $_hashAlgo;
-    private $_hasError;
-    private $_stopOnError;
-    private $_currentIndex;
-    private $_currentBlock;
-    private $_currentSize;
-    private $_currentPos;
+    protected $base;
+    protected $hashAlgo;
+    protected $hasError;
+    protected $stopOnError;
+    protected $currentIndex;
+    protected $currentBlock;
+    protected $currentSize;
+    protected $currentPos;
 
     /**
      * Default block size used by KeePass.
@@ -40,114 +40,114 @@ class HashedBlockReader extends Reader
      *                            check fails. If set to false, reading will continue after an
      *                            error but it may well be complete garbage.
      */
-    public function __construct(Reader $reader, $hashAlgo, $stopOnError = true)
+    public function __construct(Reader $reader, string $hashAlgo, bool $stopOnError = true)
     {
-        $this->_base = $reader;
-        $this->_hashAlgo = $hashAlgo;
-        $this->_stopOnError = $stopOnError;
-        $this->_hasError = false;
-        $this->_currentIndex = 0;
-        $this->_currentBlock = null;
-        $this->_currentSize = 0;
-        $this->_currentPos = 0;
+        $this->base = $reader;
+        $this->hashAlgo = $hashAlgo;
+        $this->stopOnError = $stopOnError;
+        $this->hasError = false;
+        $this->currentIndex = 0;
+        $this->currentBlock = null;
+        $this->currentSize = 0;
+        $this->currentPos = 0;
     }
 
-    public function read($n)
+    public function read($n): ?string
     {
         $s = '';
         $remaining = $n;
         while ($remaining > 0) {
-            if ($this->_currentPos >= $this->_currentSize) {
+            if ($this->currentPos >= $this->currentSize) {
                 if (!$this->readBlock()) {
                     return $s;
                 }
             }
-            $t = min($remaining, $this->_currentSize - $this->_currentPos);
-            $s .= substr($this->_currentBlock, $this->_currentPos, $t);
-            $this->_currentPos += $t;
+            $t = min($remaining, $this->currentSize - $this->currentPos);
+            $s .= substr($this->currentBlock, $this->currentPos, $t);
+            $this->currentPos += $t;
             $remaining -= $t;
         }
 
         return $s;
     }
 
-    public function readToTheEnd()
+    public function readToTheEnd(): ?string
     {
-        $s = $this->read($this->_currentSize - $this->_currentPos);
+        $s = $this->read($this->currentSize - $this->currentPos);
         while ($this->readBlock()) {
-            $s .= $this->_currentBlock;
+            $s .= $this->currentBlock;
         }
 
         return $s;
     }
 
-    public function canRead()
+    public function canRead(): bool
     {
-        return (!$this->_hasError || !$this->_stopOnError) &&
-            $this->_base->canRead();
+        return (!$this->hasError || !$this->stopOnError) &&
+            $this->base->canRead();
     }
 
-    public function close()
+    public function close(): void
     {
-        $this->_base->close();
+        $this->base->close();
     }
 
     /**
      * Whether this instance data is corrupted.
      *
-     * @return true if the data read so far is corrupted, false otherwise.
+     * @return bool true if the data read so far is corrupted, false otherwise.
      */
-    public function isCorrupted()
+    public function isCorrupted(): bool
     {
-        return $this->_hasError;
+        return $this->hasError;
     }
 
-    private function readBlock()
+    protected function readBlock(): bool
     {
         if (!$this->canRead()) {
             return false;
         }
 
-        $bl = $this->_base->read(4);
-        if ($bl != pack('V', $this->_currentIndex)) {
-            $this->_hasError = true;
-            if ($this->_stopOnError) {
+        $bl = $this->base->read(4);
+        if ($bl != pack('V', $this->currentIndex)) {
+            $this->hasError = true;
+            if ($this->stopOnError) {
                 return false;
             }
         }
-        $this->_currentIndex++;
+        $this->currentIndex++;
 
-        $hash = $this->_base->read(32);
+        $hash = $this->base->read(32);
         if (strlen($hash) != 32) {
-            $this->_hasError = true;
+            $this->hasError = true;
 
             return false;
         }
 
         // May not work on 32 bit platforms if $blockSize is greather
         // than 2**31, but in KeePass implementation it is set at 2**20.
-        $blockSize = $this->_base->readNumber(4);
+        $blockSize = $this->base->readNumber(4);
         if ($blockSize <= 0) {
             return false;
         }
 
-        $block = $this->_base->read($blockSize);
+        $block = $this->base->read($blockSize);
         if (strlen($block) != $blockSize) {
-            $this->_hasError = true;
+            $this->hasError = true;
 
             return false;
         }
 
-        if ($hash !== hash($this->_hashAlgo, $block, true)) {
-            $this->_hasError = true;
-            if ($this->_stopOnError) {
+        if ($hash !== hash($this->hashAlgo, $block, true)) {
+            $this->hasError = true;
+            if ($this->stopOnError) {
                 return false;
             }
         }
 
-        $this->_currentBlock = $block;
-        $this->_currentSize = $blockSize;
-        $this->_currentPos = 0;
+        $this->currentBlock = $block;
+        $this->currentSize = $blockSize;
+        $this->currentPos = 0;
 
         return true;
     }
@@ -162,7 +162,7 @@ class HashedBlockReader extends Reader
      *
      * @return string The hashed-by-blocks version of $source.
      */
-    public static function hashString($source, $hashAlgo)
+    public static function hashString(string $source, string $hashAlgo): string
     {
         $len = strlen($source);
         $blockSize = self::DEFAULT_BLOCK_SIZE;

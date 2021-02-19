@@ -13,7 +13,7 @@
         },
         {
             "name": "Alexander Hank",
-            "email": "info@hank-it.com",
+            "email": "mail@hank-it.com",
             "homepage": "https://hank-it.com"
         }
     ],
@@ -29,12 +29,6 @@
     "autoload": {
         "psr-4": {
             "KeePassPHP\\": "src"
-        },
-        "files": [
-            "src/Helpers/gzdecode2.php"
-        ]
-    },
-    "require-dev": {
-        "larapack/dd": "^1.1"
+        }
     }
 }

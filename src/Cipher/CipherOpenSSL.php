@@ -98,12 +98,14 @@ class CipherOpenSSL extends Cipher
             $options = $options | OPENSSL_NO_PADDING;
         }
 
-        return openssl_decrypt(
+        $status = openssl_decrypt(
             $string,
             $this->method,
             $this->key,
             $options,
             $this->iv
         );
+
+        return $status ? $status: null;
     }
 }

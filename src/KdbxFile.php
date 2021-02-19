@@ -9,6 +9,7 @@ use KeePassPHP\Readers\HashedBlockReader;
 use KeePassPHP\Readers\Reader;
 use KeePassPHP\Readers\StringReader;
 use KeePassPHP\Streams\Salsa20RandomStream;
+use function KeePassPHP\Helpers\gzdecode2;
 
 /**
  * A class that manages a Kdbx file, which is mainly an encryptable text
@@ -278,6 +279,7 @@ class KdbxFile
         }
 
         $transformedKey = self::transformKey($key, $header);
+
         $cipher = Cipher::create(
             $cipherMethod,
             $transformedKey,
@@ -312,7 +314,7 @@ class KdbxFile
         if ($header->compression == KdbxHeader::COMPRESSION_GZIP) {
             $filename = null;
             $gzerror = null;
-            $decoded = gzdecode2($decoded, $filename, $gzerror);
+            $decoded = gzdecode($decoded, $filename);
             if (strlen($decoded) == 0) {
                 $error = 'Kdbx file decrypt: ungzip error: '.$gzerror.'.';
 

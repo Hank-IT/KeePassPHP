@@ -1,5 +1,5 @@
 {
-    "name": "keepassphp/keepassphp",
+    "name": "HankIT/keepassphp",
     "type": "library",
     "description": "KeePass password manager in PHP",
     "keywords": ["keepass","password manager"],
@@ -23,8 +23,7 @@
         "ext-xmlreader": "*",
         "ext-json": "*",
         "ext-openssl": "*",
-        "ext-zlib": "*",
-        "illuminate/support": "6.*"
+        "ext-zlib": "*"
     },
     "autoload": {
         "psr-4": {

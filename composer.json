@@ -1,9 +1,9 @@
 {
-    "name": "HankIT/keepassphp",
+    "name": "hankit/keepassphp",
     "type": "library",
-    "description": "KeePass password manager in PHP",
+    "description": "Library to parse .kdbx files in PHP",
     "keywords": ["keepass","password manager"],
-    "homepage": "https://github.com/shkdee/KeePassPHP",
+    "homepage": "https://github.com/Hank-IT/KeePassPHP",
     "license": "MIT",
     "authors": [
         {

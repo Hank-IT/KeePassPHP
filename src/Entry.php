@@ -173,7 +173,7 @@ class Entry
             $result[Database::KEY_STRINGFIELDS] = $stringFields;
         }
 
-        if (is_null($this->history)) {
+        if (! is_null($this->history)) {
             $history = [];
             foreach ($this->history as &$entry) {
                 if ($filter->acceptHistoryEntry($entry)) {

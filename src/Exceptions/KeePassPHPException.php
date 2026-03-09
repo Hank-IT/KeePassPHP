@@ -6,7 +6,4 @@ namespace KeePassPHP\Exceptions;
 
 use Exception;
 
-class KeePassPHPException extends Exception
-{
-
-}
+class KeePassPHPException extends Exception {}

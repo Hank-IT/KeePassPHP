@@ -1,7 +1,10 @@
 <?php
 
+declare(strict_types=1);
+
 namespace KeePassPHP;
 
+use KeePassPHP\Exceptions\KeePassPHPException;
 use KeePassPHP\Readers\DigestReader;
 use KeePassPHP\Readers\Reader;
 
@@ -9,294 +12,148 @@ use KeePassPHP\Readers\Reader;
  * This class represents the header of a Kdbx file, which is the un-encrypted
  * part of the file containing information on the encrypted content, on
  * how to decrypt it, and some integrity data.
- * This class can write and parse headers, to and from their specific binary
- * format. It is rather loose in what it accepts as a header, to be more
- * generic. The class KdbxFile performs more thorough checks on the header
- * content, to make sure it respects the contraints of a Kdbx file.
- *
- * @author     Louis Traynard <louis.traynard@m4x.org>
- * @copyright  Louis Traynard
- * @license    http://www.opensource.org/licenses/mit-license.html  MIT License
- *
- * @link       https://github.com/shkdee/KeePassPHP
  */
-class KdbxHeader
+final class KdbxHeader
 {
-    /** A binary string identifying the cipher used to encrypt the file. */
-    public $cipher;
-    /** An integer identifying the algorithm used to compress the file. */
-    public $compression;
-    /** Master seed for the file encryption key. */
-    public $masterSeed;
-    /** Specific seed to compute the file encryption key. */
-    public $transformSeed;
-    /** Number of cipher rounds to perform to compute the file encryption key. */
-    public $rounds;
-    /** The IV to use to decrypt the file. */
-    public $encryptionIV;
-    /** The specific initializing key for possible random stream. */
-    public $randomStreamKey;
-    /** The first bytes of the decrypted file (before un-compressing). */
-    public $startBytes;
-    /** An integer identifying the random stream generator to use. */
-    public $randomStream;
-    /** The hash of the binary format of the header. */
-    public $headerHash;
+    public const string SIGNATURE1 = "\x03\xD9\xA2\x9A";
+    public const string SIGNATURE2 = "\x67\xFB\x4B\xB5";
+    public const string VERSION = "\x01\x00\x03\x00";
+    public const int MAXIMAL_VERSION = 3;
 
-    const SIGNATURE1 = "\x03\xD9\xA2\x9A";
-    const SIGNATURE2 = "\x67\xFB\x4B\xB5";
-    const VERSION = "\x01\x00\x03\x00";
-    const MAXIMAL_VERSION = 3;
+    public const string CIPHER_AES = "\x31\xC1\xF2\xE6\xBF\x71\x43\x50\xBE\x58\x05\x21\x6A\xFC\x5A\xFF";
 
-    const CIPHER_AES = "\x31\xC1\xF2\xE6\xBF\x71\x43\x50\xBE\x58\x05\x21\x6A\xFC\x5A\xFF";
+    public const int COMPRESSION_NONE = 1;
+    public const int COMPRESSION_GZIP = 2;
+    public const int RANDOMSTREAM_NONE = 1;
+    public const int RANDOMSTREAM_SALSA20 = 3;
 
-    const COMPRESSION_NONE = 1;
-    const COMPRESSION_GZIP = 2;
-    const RANDOMSTREAM_NONE = 1;
-    //const RANDOMSTREAM_ARC4 = 2;
-    const RANDOMSTREAM_SALSA20 = 3;
+    public const string INT_0 = "\x00\x00\x00\x00";
+    public const string INT_1 = "\x01\x00\x00\x00";
+    public const string INT_2 = "\x02\x00\x00\x00";
 
-    const INT_0 = "\x00\x00\x00\x00";
-    const INT_1 = "\x01\x00\x00\x00";
-    const INT_2 = "\x02\x00\x00\x00";
+    public ?string $cipher = null;
+    public int $compression = 0;
+    public ?string $masterSeed = null;
+    public ?string $transformSeed = null;
+    public ?string $rounds = null;
+    public ?string $encryptionIV = null;
+    public ?string $randomStreamKey = null;
+    public ?string $startBytes = null;
+    public int $randomStream = 0;
+    public ?string $headerHash = null;
 
-    public function __construct()
+    public function toBinary(string $hashAlgo): string
     {
-        $this->cipher = null;
-        $this->compression = 0;
-        $this->masterSeed = null;
-        $this->transformSeed = null;
-        $this->rounds = null;
-        $this->encryptionIV = null;
-        $this->randomStreamKey = null;
-        $this->startBytes = null;
-        $this->headerHash = null;
-        $this->randomStream = 0;
-    }
-
-    /**
-     * Gets the binary format of this Header instance, and computes its hash.
-     *
-     * @param string $hashAlgo The hash algorithm to use to compute the header hash.
-     *
-     * @return string A binary string representing this Header instance.
-     */
-    public function toBinary($hashAlgo)
-    {
-        $s = self::SIGNATURE1.self::SIGNATURE2.self::VERSION
-            .self::fieldToString(2, $this->cipher)
-            .self::fieldToString(
+        $binary = self::SIGNATURE1 . self::SIGNATURE2 . self::VERSION
+            . self::fieldToString(2, $this->cipher)
+            . self::fieldToString(
                 3,
-                $this->compression == self::COMPRESSION_GZIP
-                ? self::INT_1 : self::INT_0
+                $this->compression === self::COMPRESSION_GZIP ? self::INT_1 : self::INT_0
             )
-            .self::fieldToString(4, $this->masterSeed)
-            .self::fieldToString(5, $this->transformSeed)
-            .self::fieldToString(6, $this->rounds)
-            .self::fieldToString(7, $this->encryptionIV)
-            .self::fieldToString(8, $this->randomStreamKey)
-            .self::fieldToString(9, $this->startBytes)
-            .self::fieldToString(
+            . self::fieldToString(4, $this->masterSeed)
+            . self::fieldToString(5, $this->transformSeed)
+            . self::fieldToString(6, $this->rounds)
+            . self::fieldToString(7, $this->encryptionIV)
+            . self::fieldToString(8, $this->randomStreamKey)
+            . self::fieldToString(9, $this->startBytes)
+            . self::fieldToString(
                 10,
-                $this->randomStream == self::RANDOMSTREAM_SALSA20
-                ? self::INT_2 : self::INT_0
+                $this->randomStream === self::RANDOMSTREAM_SALSA20 ? self::INT_2 : self::INT_0
             )
-            .self::fieldToString(0, null);
-        $this->headerHash = hash($hashAlgo, $s, true);
+            . self::fieldToString(0, null);
 
-        return $s;
+        $this->headerHash = hash($hashAlgo, $binary, true);
+
+        return $binary;
     }
 
-    /**
-     * Gets the binary format of the given header field.
-     *
-     * @param string $id    The field id.
-     * @param string $value The field value.
-     *
-     * @return string A binary string representing the header field.
-     */
-    private static function fieldToString($id, $value)
+    private static function fieldToString(int $id, ?string $value): string
     {
-        $l = strlen($value);
+        $value ??= '';
+        $length = strlen($value);
 
-        return chr($id).($l == 0 ? "\x00\x00" : (pack('v', $l).$value));
+        return chr($id) . ($length === 0 ? "\x00\x00" : pack('v', $length) . $value);
     }
 
-    /**
-     * Checks whether all fields are set in this instance.
-     *
-     * @return bool if all fields are set, false otherwise.
-     */
-    public function check()
+    public function check(): bool
     {
-        if ($this->cipher === null) {
-            return false;
-        }
-        if ($this->compression === 0) {
-            return false;
-        }
-        if ($this->masterSeed === null) {
-            return false;
-        }
-        if ($this->transformSeed === null) {
-            return false;
-        }
-        if ($this->rounds === null) {
-            return false;
-        }
-        if ($this->encryptionIV === null) {
-            return false;
-        }
-        if ($this->startBytes === null) {
-            return false;
-        }
-        if ($this->headerHash === null) {
-            return false;
-        }
-        if ($this->randomStreamKey === null) {
-            return false;
-        }
-        if ($this->randomStream === 0) {
-            return false;
-        }
-
-        return true;
+        return $this->cipher !== null
+            && $this->compression !== 0
+            && $this->masterSeed !== null
+            && $this->transformSeed !== null
+            && $this->rounds !== null
+            && $this->encryptionIV !== null
+            && $this->startBytes !== null
+            && $this->headerHash !== null
+            && $this->randomStreamKey !== null
+            && $this->randomStream !== 0;
     }
 
-    /**
-     * Parses the content of a Reader as a KdbxHeader in binary format.
-     *
-     * @param Reader $reader   A Reader that reads the header.
-     * @param string $hashAlgo The hash algorithm to use to compute the header hash.
-     * @param string &$error   A string that will receive a message in case of error.
-     *
-     * @return KdbxHeader A new KdbxHeader instance if it could be correctly parsed from
-     *                    the reader, and null otherwise.
-     */
-    public static function load(Reader $reader, $hashAlgo, &$error)
+    public static function fromReader(Reader $reader, string $hashAlgo): self
     {
-        $dreader = new DigestReader($reader, $hashAlgo);
+        $digestReader = new DigestReader($reader, $hashAlgo);
 
-        $sig1 = $dreader->read(4);
-        $sig2 = $dreader->read(4);
-        if ($sig1 != self::SIGNATURE1 || $sig2 != self::SIGNATURE2) {
-            $error = 'Kdbx header: signature not correct.';
-
-            return null;
+        $sig1 = $digestReader->read(4);
+        $sig2 = $digestReader->read(4);
+        if ($sig1 !== self::SIGNATURE1 || $sig2 !== self::SIGNATURE2) {
+            throw new KeePassPHPException('Kdbx header: signature not correct.');
         }
 
-        $lowerversion = $dreader->readNumber(2);
-        $upperversion = $dreader->readNumber(2);
-        if ($upperversion > self::MAXIMAL_VERSION) {
-            $error = 'Kdbx header: version not supported.';
-
-            return null;
+        $digestReader->readNumber(2);
+        $upperVersion = $digestReader->readNumber(2);
+        if ($upperVersion > self::MAXIMAL_VERSION) {
+            throw new KeePassPHPException('Kdbx header: version not supported.');
         }
 
-        $header = new KdbxHeader();
+        $header = new self();
         $ended = false;
-        while (!$ended) {
-            $fieldId = $dreader->readByte();
-            $fieldLen = $dreader->readNumber(2);
+
+        while (! $ended) {
+            $fieldId = $digestReader->readByte();
+            $fieldLength = $digestReader->readNumber(2);
             $field = null;
-            if ($fieldLen > 0) {
-                $field = $dreader->read($fieldLen);
-                if ($field == null || strlen($field) != $fieldLen) {
-                    $error = 'Kdbx header: uncomplete header field.';
 
-                    return null;
+            if ($fieldLength > 0) {
+                $field = $digestReader->read($fieldLength);
+                if ($field === null || strlen($field) !== $fieldLength) {
+                    throw new KeePassPHPException('Kdbx header: incomplete header field.');
                 }
             }
 
-            /*
-             * end of header
-             */
-            if ($fieldId == 0) {
+            if ($fieldId === 0) {
                 $ended = true;
+                continue;
             }
 
-            /*
-             * comment (let's ignore)
-             */
-            //elseif($fieldId == 1)
-            //	;
-
-            /*
-             * Cipher type
-             */
-            elseif ($fieldId == 2) {
-                $header->cipher = $field;
-            }
-
-            /*
-             * Compression method
-             */
-            elseif ($fieldId == 3) {
-                if ($field == self::INT_0) {
-                    $header->compression = self::COMPRESSION_NONE;
-                } elseif ($field == self::INT_1) {
-                    $header->compression = self::COMPRESSION_GZIP;
-                }
-            }
-
-            /*
-             *  MasterSeed
-             */
-            elseif ($fieldId == 4) {
-                $header->masterSeed = $field;
-            }
-
-            /*
-             * TransformSeed
-             */
-            elseif ($fieldId == 5) {
-                $header->transformSeed = $field;
-            }
-
-            /*
-             * Number of rounds
-             */
-            elseif ($fieldId == 6) {
-                $header->rounds = $field;
-            }
-
-            /*
-             * EncryptionIV
-             */
-            elseif ($fieldId == 7) {
-                $header->encryptionIV = $field;
-            }
-
-            /*
-             * Random stream key
-             */
-            elseif ($fieldId == 8) {
-                $header->randomStreamKey = $field;
-            }
-
-            /*
-             * First bytes of result
-             */
-            elseif ($fieldId == 9) {
-                $header->startBytes = $field;
-            }
-
-            /*
-             * Random stream type
-             */
-            elseif ($fieldId == 10) {
-                if ($field == self::INT_0) {
-                    $header->randomStream = self::RANDOMSTREAM_NONE;
-                } elseif ($field == self::INT_2) {
-                    $header->randomStream = self::RANDOMSTREAM_SALSA20;
-                }
-                /*elseif($field == self::INT_1) // unsuported
-                    $header->randomStream= self::RANDOMSTREAM_ARC4;*/
-            }
+            $header->assignField($fieldId, $field);
         }
-        $header->headerHash = $dreader->getDigest();
-        $error = null;
+
+        $header->headerHash = $digestReader->getDigest();
 
         return $header;
+    }
+
+    private function assignField(int $fieldId, ?string $field): void
+    {
+        match ($fieldId) {
+            2 => $this->cipher = $field,
+            3 => $this->compression = match ($field) {
+                self::INT_0 => self::COMPRESSION_NONE,
+                self::INT_1 => self::COMPRESSION_GZIP,
+                default => $this->compression,
+            },
+            4 => $this->masterSeed = $field,
+            5 => $this->transformSeed = $field,
+            6 => $this->rounds = $field,
+            7 => $this->encryptionIV = $field,
+            8 => $this->randomStreamKey = $field,
+            9 => $this->startBytes = $field,
+            10 => $this->randomStream = match ($field) {
+                self::INT_0 => self::RANDOMSTREAM_NONE,
+                self::INT_2 => self::RANDOMSTREAM_SALSA20,
+                default => $this->randomStream,
+            },
+            default => null,
+        };
     }
 }

@@ -2,7 +2,10 @@
     "name": "hankit/keepassphp",
     "type": "library",
     "description": "Library to parse .kdbx files in PHP",
-    "keywords": ["keepass","password manager"],
+    "keywords": [
+        "keepass",
+        "password manager"
+    ],
     "homepage": "https://github.com/Hank-IT/KeePassPHP",
     "license": "MIT",
     "authors": [
@@ -18,16 +21,42 @@
         }
     ],
     "require": {
-        "php": ">=7.3.0",
+        "php": ">=8.4.0",
         "ext-hash": "*",
         "ext-xmlreader": "*",
         "ext-json": "*",
         "ext-openssl": "*",
-        "ext-zlib": "*"
+        "ext-zlib": "*",
+        "ext-sodium": "*"
     },
     "autoload": {
         "psr-4": {
             "KeePassPHP\\": "src"
         }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "KeePassPHP\\Tests\\": "tests"
+        }
+    },
+    "require-dev": {
+        "phpstan/phpstan": "^2.1",
+        "friendsofphp/php-cs-fixer": "^3.94",
+        "phpunit/phpunit": "^12"
+    },
+    "config": {
+        "sort-packages": true
+    },
+    "scripts": {
+        "test": "vendor/bin/phpunit --configuration phpunit.xml.dist",
+        "test:playground": "vendor/bin/phpunit --configuration phpunit.xml.dist --group playground --display-skipped",
+        "stan": "@php -d xdebug.mode=off vendor/bin/phpstan analyse --configuration phpstan.neon.dist --no-progress",
+        "cs:check": "vendor/bin/php-cs-fixer fix --config=.php-cs-fixer.dist.php --dry-run --diff --verbose --sequential",
+        "cs:fix": "vendor/bin/php-cs-fixer fix --config=.php-cs-fixer.dist.php --verbose --sequential",
+        "check": [
+            "@stan",
+            "@test",
+            "@cs:check"
+        ]
     }
 }

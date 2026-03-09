@@ -37,7 +37,7 @@ interface Filter
      * Returns true if the given group must be serialized (otherwise it will be
      * discarded).
      *
-     * @param Entry $entry A group.
+     * @param Group $group A group.
      *
      * @return bool
      */

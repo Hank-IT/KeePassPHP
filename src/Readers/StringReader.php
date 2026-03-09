@@ -7,40 +7,48 @@ namespace KeePassPHP\Readers;
 /**
  * An implementation of the Reader class, using a string as source.
  */
-class StringReader extends Reader
+final class StringReader extends Reader
 {
-    protected $str;
-    protected $n;
-    protected $pt;
+    protected ?string $source;
+    protected int $length;
+    protected int $position = 0;
 
     /**
-     * Constructs a new StringReader instance that reads the string $s.
+     * Constructs a new StringReader instance that reads the string $source.
      *
-     * @param string $s A non-null string.
+     * @param string $source A source string.
      */
-    public function __construct($s)
+    public function __construct(string $source)
     {
-        $this->str = $s;
-        $this->pt = 0;
-        $this->n = strlen($s);
+        $this->source = $source;
+        $this->length = strlen($source);
     }
 
-    public function read($n): ?string
+    public function read(int $n): ?string
     {
+        if ($n < 1) {
+            return '';
+        }
+
         if (!$this->canRead()) {
             return null;
         }
 
-        $t = min($n, $this->n - $this->pt);
-        $res = substr($this->str, $this->pt, $t);
-        $this->pt += $t;
+        $source = $this->source;
+        if ($source === null) {
+            return null;
+        }
 
-        return $res;
+        $chunkLength = min($n, $this->length - $this->position);
+        $chunk = substr($source, $this->position, $chunkLength);
+        $this->position += $chunkLength;
+
+        return $chunk;
     }
 
     public function canRead(): bool
     {
-        return $this->pt < $this->n;
+        return $this->source !== null && $this->position < $this->length;
     }
 
     public function readToTheEnd(): ?string
@@ -49,16 +57,21 @@ class StringReader extends Reader
             return null;
         }
 
-        $res = substr($this->str, $this->pt);
-        $this->pt = $this->n;
+        $source = $this->source;
+        if ($source === null) {
+            return null;
+        }
 
-        return $res;
+        $remaining = substr($source, $this->position);
+        $this->position = $this->length;
+
+        return $remaining;
     }
 
     public function close(): void
     {
-        $this->str = null;
-        $this->n = 0;
-        $this->pt = 0;
+        $this->source = null;
+        $this->length = 0;
+        $this->position = 0;
     }
 }

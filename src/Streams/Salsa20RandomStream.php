@@ -6,16 +6,17 @@ namespace KeePassPHP\Streams;
 
 use KeePassPHP\Contracts\RandomStream;
 
-class Salsa20RandomStream implements RandomStream
+final class Salsa20RandomStream implements RandomStream
 {
-    protected $state;
-    protected $output;
-    protected $outputPos;
+    /** @var array<int, int> */
+    private array $state;
+    private string $output = '';
+    private int $outputPos = self::OUTPUT_LEN;
 
-    const STATE_LEN = 32;
-    const KEY_LEN = 32;
-    const OUTPUT_LEN = 64;
-    const IV_LEN = 8;
+    public const int STATE_LEN = 32;
+    public const int KEY_LEN = 32;
+    public const int OUTPUT_LEN = 64;
+    public const int IV_LEN = 8;
 
     /**
      * Creates a new Salsa20Stream instance.
@@ -27,31 +28,24 @@ class Salsa20RandomStream implements RandomStream
      */
     public static function create(string $key, string $iv): ?self
     {
-        if (strlen($key) != static::KEY_LEN || strlen($iv) != static::IV_LEN) {
+        if (strlen($key) !== self::KEY_LEN || strlen($iv) !== self::IV_LEN) {
             return null;
         }
 
-        return new static($key, $iv);
+        return new self($key, $iv);
     }
 
-    protected function __construct(string $key, string $iv)
+    private function __construct(string $key, string $iv)
     {
-        $this->state = [];
-        for ($i = 0; $i < self::STATE_LEN; $i++) {
-            $this->state[$i] = 0;
-        }
-
-        $this->output = [];
-        for ($i = 0; $i < self::OUTPUT_LEN; $i++) {
-            $this->output[$i] = 0;
-        }
-
-        $this->outputPos = self::OUTPUT_LEN;
-        $this->keySetup(array_values(unpack('v16', $key)));
-        $this->ivSetup(array_values(unpack('v4', $iv)));
+        $this->state = array_fill(0, self::STATE_LEN, 0);
+        $this->keySetup(self::unpackWords($key, self::KEY_LEN / 2));
+        $this->ivSetup(self::unpackWords($iv, self::IV_LEN / 2));
     }
 
-    protected function keySetup(array $key)
+    /**
+     * @param list<int> $key
+     */
+    private function keySetup(array $key): void
     {
         for ($i = 0; $i < 4; $i++) {
             $j = 2 * $i;
@@ -70,7 +64,10 @@ class Salsa20RandomStream implements RandomStream
         $this->state[31] = 0x6B20;
     }
 
-    protected function ivSetup(array $iv)
+    /**
+     * @param list<int> $iv
+     */
+    private function ivSetup(array $iv): void
     {
         $this->state[12] = $iv[0];
         $this->state[13] = $iv[1];
@@ -82,7 +79,10 @@ class Salsa20RandomStream implements RandomStream
         $this->state[19] = 0;
     }
 
-    protected static function addRotXor(&$x, $i, $j, $b, $target)
+    /**
+     * @param array<int, int> $x
+     */
+    private static function addRotXor(array &$x, int $i, int $j, int $b, int $target): void
     {
         $s = $x[2 * $i] + $x[2 * $j];
         $r = $s >> 16;
@@ -93,50 +93,47 @@ class Salsa20RandomStream implements RandomStream
         $b = $b % 16;
         $nt = (($t << $b) & 0xFFFF) | ($s >> (16 - $b));
         $ns = (($s << $b) & 0xFFFF) | ($t >> (16 - $b));
-        $x[2 * $target + $m] = $x[2 * $target + $m] ^ $ns;
-        $x[2 * $target + 1 - $m] = $x[2 * $target + 1 - $m] ^ $nt;
+        $x[2 * $target + $m] ^= $ns;
+        $x[2 * $target + 1 - $m] ^= $nt;
     }
 
-    protected function nextOutput()
+    private function nextOutput(): void
     {
-        $x = [];
-        for ($i = 0; $i < self::STATE_LEN; $i++) {
-            $x[$i] = $this->state[$i];
-        }
+        $x = $this->state;
 
         for ($i = 0; $i < 10; $i++) {
-            $this->addRotXor($x, 0, 12, 7, 4);
-            $this->addRotXor($x, 4, 0, 9, 8);
-            $this->addRotXor($x, 8, 4, 13, 12);
-            $this->addRotXor($x, 12, 8, 18, 0);
-            $this->addRotXor($x, 5, 1, 7, 9);
-            $this->addRotXor($x, 9, 5, 9, 13);
-            $this->addRotXor($x, 13, 9, 13, 1);
-            $this->addRotXor($x, 1, 13, 18, 5);
-            $this->addRotXor($x, 10, 6, 7, 14);
-            $this->addRotXor($x, 14, 10, 9, 2);
-            $this->addRotXor($x, 2, 14, 13, 6);
-            $this->addRotXor($x, 6, 2, 18, 10);
-            $this->addRotXor($x, 15, 11, 7, 3);
-            $this->addRotXor($x, 3, 15, 9, 7);
-            $this->addRotXor($x, 7, 3, 13, 11);
-            $this->addRotXor($x, 11, 7, 18, 15);
-            $this->addRotXor($x, 0, 3, 7, 1);
-            $this->addRotXor($x, 1, 0, 9, 2);
-            $this->addRotXor($x, 2, 1, 13, 3);
-            $this->addRotXor($x, 3, 2, 18, 0);
-            $this->addRotXor($x, 5, 4, 7, 6);
-            $this->addRotXor($x, 6, 5, 9, 7);
-            $this->addRotXor($x, 7, 6, 13, 4);
-            $this->addRotXor($x, 4, 7, 18, 5);
-            $this->addRotXor($x, 10, 9, 7, 11);
-            $this->addRotXor($x, 11, 10, 9, 8);
-            $this->addRotXor($x, 8, 11, 13, 9);
-            $this->addRotXor($x, 9, 8, 18, 10);
-            $this->addRotXor($x, 15, 14, 7, 12);
-            $this->addRotXor($x, 12, 15, 9, 13);
-            $this->addRotXor($x, 13, 12, 13, 14);
-            $this->addRotXor($x, 14, 13, 18, 15);
+            self::addRotXor($x, 0, 12, 7, 4);
+            self::addRotXor($x, 4, 0, 9, 8);
+            self::addRotXor($x, 8, 4, 13, 12);
+            self::addRotXor($x, 12, 8, 18, 0);
+            self::addRotXor($x, 5, 1, 7, 9);
+            self::addRotXor($x, 9, 5, 9, 13);
+            self::addRotXor($x, 13, 9, 13, 1);
+            self::addRotXor($x, 1, 13, 18, 5);
+            self::addRotXor($x, 10, 6, 7, 14);
+            self::addRotXor($x, 14, 10, 9, 2);
+            self::addRotXor($x, 2, 14, 13, 6);
+            self::addRotXor($x, 6, 2, 18, 10);
+            self::addRotXor($x, 15, 11, 7, 3);
+            self::addRotXor($x, 3, 15, 9, 7);
+            self::addRotXor($x, 7, 3, 13, 11);
+            self::addRotXor($x, 11, 7, 18, 15);
+            self::addRotXor($x, 0, 3, 7, 1);
+            self::addRotXor($x, 1, 0, 9, 2);
+            self::addRotXor($x, 2, 1, 13, 3);
+            self::addRotXor($x, 3, 2, 18, 0);
+            self::addRotXor($x, 5, 4, 7, 6);
+            self::addRotXor($x, 6, 5, 9, 7);
+            self::addRotXor($x, 7, 6, 13, 4);
+            self::addRotXor($x, 4, 7, 18, 5);
+            self::addRotXor($x, 10, 9, 7, 11);
+            self::addRotXor($x, 11, 10, 9, 8);
+            self::addRotXor($x, 8, 11, 13, 9);
+            self::addRotXor($x, 9, 8, 18, 10);
+            self::addRotXor($x, 15, 14, 7, 12);
+            self::addRotXor($x, 12, 15, 9, 13);
+            self::addRotXor($x, 13, 12, 13, 14);
+            self::addRotXor($x, 14, 13, 18, 15);
         }
 
         for ($i = 0; $i < self::STATE_LEN; $i += 2) {
@@ -152,19 +149,7 @@ class Salsa20RandomStream implements RandomStream
 
         $this->output = $out;
         $this->outputPos = 0;
-        $this->state[16]++;
-        if ($this->state[16] == 0xFFFF) {
-            $this->state[16] = 0;
-            $this->state[17]++;
-            if ($this->state[17] == 0xFFFF) {
-                $this->state[17] = 0;
-                $this->state[18]++;
-                if ($this->state[18] == 0xFFFF) {
-                    $this->state[18] = 0;
-                    $this->state[19]++;
-                }
-            }
-        }
+        $this->incrementCounter();
     }
 
     /**
@@ -176,19 +161,57 @@ class Salsa20RandomStream implements RandomStream
      */
     public function getNextBytes(int $n): string
     {
-        $s = '';
-        $nRem = $n;
-        while ($nRem > 0) {
-            if ($this->outputPos == 64) {
-                $this->nextOutput();
-            }
-            $nCopy = min(64 - $this->outputPos, $nRem);
-            $s .= substr($this->output, $this->outputPos, $nCopy);
-
-            $nRem -= $nCopy;
-            $this->outputPos += $nCopy;
+        if ($n < 1) {
+            return '';
         }
 
-        return $s;
+        $bytes = '';
+        $remaining = $n;
+        while ($remaining > 0) {
+            if ($this->outputPos === self::OUTPUT_LEN) {
+                $this->nextOutput();
+            }
+            $copyLength = min(self::OUTPUT_LEN - $this->outputPos, $remaining);
+            $bytes .= substr($this->output, $this->outputPos, $copyLength);
+
+            $remaining -= $copyLength;
+            $this->outputPos += $copyLength;
+        }
+
+        return $bytes;
+    }
+
+    /**
+     * @return list<int>
+     */
+    private static function unpackWords(string $bytes, int $wordCount): array
+    {
+        $words = unpack("v{$wordCount}", $bytes);
+        if ($words === false) {
+            throw new \RuntimeException('Unable to initialize Salsa20 state.');
+        }
+
+        $values = [];
+        foreach (array_values($words) as $value) {
+            if (!is_int($value)) {
+                throw new \RuntimeException('Unable to initialize Salsa20 state.');
+            }
+
+            $values[] = $value;
+        }
+
+        return $values;
+    }
+
+    private function incrementCounter(): void
+    {
+        for ($i = 16; $i <= 19; $i++) {
+            $this->state[$i]++;
+            if ($this->state[$i] <= 0xFFFF) {
+                return;
+            }
+
+            $this->state[$i] = 0;
+        }
     }
 }

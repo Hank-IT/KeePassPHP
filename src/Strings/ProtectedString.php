@@ -9,22 +9,17 @@ use KeePassPHP\Contracts\BoxedString;
 /**
  * A string protected by a mask to xor.
  */
-class ProtectedString implements BoxedString
+final class ProtectedString implements BoxedString
 {
-    protected $string;
-    protected $random;
-
-    public function __construct(string $string, string $random)
-    {
-        $this->string = $string;
-
-        $this->random = $random;
-    }
+    public function __construct(
+        private readonly string $string,
+        private readonly string $random,
+    ) {}
 
     /**
      * Gets the real content of the protected string.
      *
-     * @return string a string.
+     * @return string A string.
      */
     public function getPlainString(): string
     {

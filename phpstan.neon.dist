@@ -1,0 +1,10 @@
+parameters:
+    level: max
+    paths:
+        - src
+        - tests
+    excludePaths:
+        - tests/Playground.php
+    tmpDir: var/phpstan
+    parallel:
+        maximumNumberOfProcesses: 1

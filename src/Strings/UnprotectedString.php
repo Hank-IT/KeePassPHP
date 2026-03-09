@@ -9,19 +9,14 @@ use KeePassPHP\Contracts\BoxedString;
 /**
  * A boxed plain string.
  */
-class UnprotectedString implements BoxedString
+final class UnprotectedString implements BoxedString
 {
-    protected $string;
-
-    public function __construct(string $string)
-    {
-        $this->string = $string;
-    }
+    public function __construct(private readonly string $string) {}
 
     /**
      * Gets the boxed string.
      *
-     * @return string a string.
+     * @return string A string.
      */
     public function getPlainString(): string
     {

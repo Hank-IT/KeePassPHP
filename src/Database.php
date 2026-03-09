@@ -1,86 +1,70 @@
 <?php
 
+declare(strict_types=1);
+
 namespace KeePassPHP;
 
 use KeePassPHP\Contracts\Filter;
 use KeePassPHP\Contracts\Key;
 use KeePassPHP\Contracts\RandomStream;
+use KeePassPHP\Exceptions\KeePassPHPException;
 use KeePassPHP\Filters\AllExceptFromPasswordsFilter;
 use KeePassPHP\Readers\Reader;
 
-/**
- * A class that manages a KeePass 2.x password database.
- *
- * @author     Louis Traynard <louis.traynard@m4x.org>
- * @copyright  Louis Traynard
- * @license    http://www.opensource.org/licenses/mit-license.html  MIT License
- *
- * @link       https://github.com/shkdee/KeePassPHP
- */
-class Database
+final class Database
 {
-    const XML_KEEPASSFILE = 'KeePassFile';
-    const XML_META = 'Meta';
-    const XML_HEADERHASH = 'HeaderHash';
-    const XML_DATABASENAME = 'DatabaseName';
-    const XML_CUSTOMICONS = 'CustomIcons';
-    const XML_ICON = 'Icon';
-    const XML_UUID = 'UUID';
-    const XML_DATA = 'Data';
-    const XML_ROOT = 'Root';
-    const XML_GROUP = 'Group';
-    const XML_ENTRY = 'Entry';
-    const XML_NAME = 'Name';
-    const XML_ICONID = 'IconID';
-    const XML_CUSTOMICONUUID = 'CustomIconUUID';
-    const XML_STRING = 'String';
-    const XML_STRING_KEY = 'Key';
-    const XML_STRING_VALUE = 'Value';
-    const XML_HISTORY = 'History';
-    const XML_TAGS = 'Tags';
+    public const string XML_KEEPASSFILE = 'KeePassFile';
+    public const string XML_META = 'Meta';
+    public const string XML_HEADERHASH = 'HeaderHash';
+    public const string XML_DATABASENAME = 'DatabaseName';
+    public const string XML_CUSTOMICONS = 'CustomIcons';
+    public const string XML_ICON = 'Icon';
+    public const string XML_UUID = 'UUID';
+    public const string XML_DATA = 'Data';
+    public const string XML_ROOT = 'Root';
+    public const string XML_GROUP = 'Group';
+    public const string XML_ENTRY = 'Entry';
+    public const string XML_NAME = 'Name';
+    public const string XML_ICONID = 'IconID';
+    public const string XML_CUSTOMICONUUID = 'CustomIconUUID';
+    public const string XML_STRING = 'String';
+    public const string XML_STRING_KEY = 'Key';
+    public const string XML_STRING_VALUE = 'Value';
+    public const string XML_HISTORY = 'History';
+    public const string XML_TAGS = 'Tags';
 
-    const KEY_PASSWORD = 'Password';
-    const KEY_STRINGFIELDS = 'StringFields';
-    const KEY_TITLE = 'Title';
-    const KEY_USERNAME = 'UserName';
-    const KEY_URL = 'URL';
-    const KEY_NOTES = 'Notes';
+    public const string KEY_PASSWORD = 'Password';
+    public const string KEY_STRINGFIELDS = 'StringFields';
+    public const string KEY_TITLE = 'Title';
+    public const string KEY_USERNAME = 'UserName';
+    public const string KEY_URL = 'URL';
+    public const string KEY_NOTES = 'Notes';
 
-    const GROUPS = 'Groups';
-    const ENTRIES = 'Entries';
+    public const string GROUPS = 'Groups';
+    public const string ENTRIES = 'Entries';
 
-    protected $name;
-    protected $groups;
+    protected ?string $name = null;
 
-    /** Associative array (icon uuid in base64 => icon data in base64) keeping
-     * the data of all custom icons. */
-    protected $customIcons;
+    /** @var list<Group> */
+    protected array $groups = [];
 
-    /** Header hash registered in this database. */
-    protected $headerHash;
+    /** @var array<string, string> */
+    protected array $customIcons = [];
 
-    private function __construct()
-    {
-        $this->name = null;
-        $this->groups = null;
-        $this->customIcons = null;
-        $this->headerHash = null;
-    }
+    protected ?string $headerHash = null;
 
-    /**
-     * Gets the name of this database.
-     *
-     * @return string This database name.
-     */
-    public function getName(): string
+    public function getName(): ?string
     {
         return $this->name;
     }
 
+    public function setName(string $name): void
+    {
+        $this->name = $name;
+    }
+
     /**
-     * Gets the groups of this database.
-     *
-     * @return array An array of Group instances.
+     * @return list<Group>
      */
     public function getGroups(): array
     {
@@ -88,33 +72,32 @@ class Database
     }
 
     /**
-     * Gets the data of the custom icon whose uuid is $uuid.
-     *
-     * @param string $uuid A custom icon uuid in base64.
-     *
-     * @return string|null A custom icon data in base64 if it exists, null otherwise.
+     * @return array<string, string>
      */
-    public function getCustomIcon(string $uuid): ?string
+    public function getCustomIcons(): array
     {
-        return $this->customIcons == null ? null
-            : 'data:image/png;base64,'.$this->customIcons[$uuid];
+        return $this->customIcons;
     }
 
-    /**
-     * Gets the password of the entry whose uuid is $uuid.
-     *
-     * @param string $uuid An entry uuid in base64.
-     *
-     * @return string|null The decrypted password if the entry exists, null otherwise.
-     */
-    public function getPassword(string $uuid): ?string
+    public function getCustomIcon(string $uuid): ?string
     {
-        if (is_null($this->groups)) {
+        if (! isset($this->customIcons[$uuid])) {
             return null;
         }
 
-        foreach ($this->groups as &$group) {
-            if (! is_null($value = $group->getPassword($uuid))) {
+        return 'data:image/png;base64,' . $this->customIcons[$uuid];
+    }
+
+    public function setCustomIcon(string $uuid, string $data): void
+    {
+        $this->customIcons[$uuid] = $data;
+    }
+
+    public function getPassword(string $uuid): ?string
+    {
+        foreach ($this->groups as $group) {
+            $value = $group->getPassword($uuid);
+            if ($value !== null) {
                 return $value->getPlainString();
             }
         }
@@ -122,24 +105,11 @@ class Database
         return null;
     }
 
-    /**
-     * Gets the string field value of the entry whose uuid is $uuid.
-     *
-     * @param string $uuid An entry uuid in base64.
-     * @param string $key  A key.
-     *
-     * @return string|null A string of value the field if the entry if exists,
-     *                     an empty string if the entry exists but the string field,
-     *                     null if entry does not exists.
-     */
     public function getStringField(string $uuid, string $key): ?string
     {
-        if (is_null($this->groups)) {
-            return null;
-        }
-
-        foreach ($this->groups as &$group) {
-            if (! is_null( $value = $group->getStringField($uuid, $key))) {
+        foreach ($this->groups as $group) {
+            $value = $group->getStringField($uuid, $key);
+            if ($value !== null) {
                 return $value;
             }
         }
@@ -148,20 +118,13 @@ class Database
     }
 
     /**
-     * List custom string field variables of the entry whose uuid is $uuid.
-     *
-     * @param string $uuid An entry uuid in base64.
-     *
-     * @return string|null A list of custom fields if the entry exists, null if entry does not exists.
+     * @return list<string>|null
      */
-    public function listCustomFields(string $uuid): ?string
+    public function listCustomFields(string $uuid): ?array
     {
-        if (is_null($this->groups)) {
-            return null;
-        }
-
-        foreach ($this->groups as &$group) {
-            if (! is_null($value = $group->listCustomFields($uuid))) {
+        foreach ($this->groups as $group) {
+            $value = $group->listCustomFields($uuid);
+            if ($value !== null) {
                 return $value;
             }
         }
@@ -169,84 +132,65 @@ class Database
         return null;
     }
 
-    /**
-     * Parses a custom icon XML element node, and adds the result to the
-     * $customIcons array.
-     *
-     * @param ProtectedXMLReader $reader A ProtectedXMLReader instance located at a custom icon element node.
-     */
     protected function parseCustomIcon(ProtectedXMLReader $reader): void
     {
         $uuid = null;
         $data = null;
-        $d = $reader->depth();
+        $depth = $reader->depth();
 
-        while ($reader->read($d)) {
+        while ($reader->read($depth)) {
             if ($reader->isElement(self::XML_UUID)) {
-                $uuid = $reader->readTextInside();
+                $uuidValue = $reader->readTextInside();
+                $uuid = is_string($uuidValue) ? $uuidValue : null;
             } elseif ($reader->isElement(self::XML_DATA)) {
-                $data = $reader->readTextInside();
+                $dataValue = $reader->readTextInside();
+                $data = is_string($dataValue) ? $dataValue : null;
             }
         }
 
-        if (!empty($uuid) && !empty($data)) {
-            if ($this->customIcons == null) {
-                $this->customIcons = [];
-            }
+        if ($uuid !== null && $data !== null) {
             $this->customIcons[$uuid] = $data;
         }
     }
 
-    /**
-     * Adds a Group instance to this Database.
-     *
-     * @param Group|null $group A Group instance, possibly null (it is then ignored).
-     */
-    protected function addGroup(?Group $group): void
+    public function addGroup(Group $group): void
     {
-        if (is_null($group)) {
-            return;
-        }
-
-        if (is_null($this->groups)) {
-            $this->groups = [];
-        }
-
         $this->groups[] = $group;
     }
 
-    /**
-     * Loads the content of a Database from a ProtectedXMLReader instance
-     * reading a KeePass 2.x database and located at a KeePass file element
-     * node.
-     *
-     * @param ProtectedXMLReader $reader A XML reader.
-     */
     protected function parseXML(ProtectedXMLReader $reader): void
     {
-        $d = $reader->depth();
-        while ($reader->read($d)) {
+        $depth = $reader->depth();
+        while ($reader->read($depth)) {
             if ($reader->isElement(self::XML_META)) {
-                $metaD = $reader->depth();
-                while ($reader->read($metaD)) {
+                $metaDepth = $reader->depth();
+                while ($reader->read($metaDepth)) {
                     if ($reader->isElement(self::XML_HEADERHASH)) {
-                        $this->headerHash = base64_decode($reader->readTextInside());
+                        $headerHashValue = $reader->readTextInside();
+                        $decodedHash = is_string($headerHashValue)
+                            ? base64_decode($headerHashValue, true)
+                            : false;
+                        $this->headerHash = $decodedHash === false ? null : $decodedHash;
                     } elseif ($reader->isElement(self::XML_DATABASENAME)) {
-                        $this->name = $reader->readTextInside();
+                        $nameValue = $reader->readTextInside();
+                        $this->name = is_string($nameValue) ? $nameValue : null;
                     } elseif ($reader->isElement(self::XML_CUSTOMICONS)) {
-                        $iconsD = $reader->depth();
-                        while ($reader->read($iconsD)) {
+                        $iconsDepth = $reader->depth();
+                        while ($reader->read($iconsDepth)) {
                             if ($reader->isElement(self::XML_ICON)) {
                                 $this->parseCustomIcon($reader);
                             }
                         }
                     }
                 }
-            } elseif ($reader->isElement(self::XML_ROOT)) {
-                $rootD = $reader->depth();
-                while ($reader->read($rootD)) {
+                continue;
+            }
+
+            if ($reader->isElement(self::XML_ROOT)) {
+                $rootDepth = $reader->depth();
+                while ($reader->read($rootDepth)) {
                     if ($reader->isElement(self::XML_GROUP)) {
-                        $this->addGroup(Group::loadFromXML($reader));
+                        $this->addGroup(Group::fromXML($reader));
                     }
                 }
             }
@@ -254,171 +198,133 @@ class Database
     }
 
     /**
-     * Creates an array describing this database (with respect to the filter).
-     * This array can be safely serialized to json after.
-     *
-     * @param Filter|null $filter A filter to select the data that is actually copied to
-     *                       the array (if null, it will serialize everything except
-     *                       from passowrds).
-     *
-     * @return array An array containing this database (except passwords).
+     * @return array<string, mixed>
      */
-    public function toArray(Filter $filter = null): array
+    public function toArray(?Filter $filter = null): array
     {
-        if (is_null($filter)) {
-            $filter = new AllExceptFromPasswordsFilter();
-        }
+        $filter ??= new AllExceptFromPasswordsFilter();
 
         $result = [];
-        if (! is_null($this->name)) {
+        if ($this->name !== null) {
             $result[self::XML_DATABASENAME] = $this->name;
         }
 
-        if (! is_null($this->customIcons) && $filter->acceptIcons()) {
+        if ($this->customIcons !== [] && $filter->acceptIcons()) {
             $result[self::XML_CUSTOMICONS] = $this->customIcons;
         }
 
-        if (! is_null($this->groups)) {
-            $groups = [];
-            foreach ($this->groups as &$group) {
-                if ($filter->acceptGroup($group)) {
-                    $groups[] = $group->toArray($filter);
-                }
+        $groups = [];
+        foreach ($this->groups as $group) {
+            if ($filter->acceptGroup($group)) {
+                $groups[] = $group->toArray($filter);
             }
+        }
 
-            if (! empty($groups)) {
-                $result[self::GROUPS] = $groups;
-            }
+        if ($groups !== []) {
+            $result[self::GROUPS] = $groups;
         }
 
         return $result;
     }
 
     /**
-     * Creates a new Database instance from an array created by the method
-     * toArray() of another Database instance.
-     *
-     * @param array  $array   An array created by the method toArray().
-     * @param string $version The version of the array format.
-     * @param string &$error  A string that will receive a message in case of error.
-     *
-     * @return self|null A Database instance if the parsing went okay, null otherwise.
+     * @param array<string, mixed> $array
+     * @throws KeePassPHPException
      */
-    public static function loadFromArray(array $array, $version, &$error): ?self
+    public static function fromArray(array $array, string $version): self
     {
-        if ($array == null) {
-            $error = 'Database array load: array is empty.';
-
-            return null;
+        if ($array === []) {
+            throw new KeePassPHPException('Database array load: array is empty.');
         }
 
-        $db = new Database();
-        $db->name = self::getIfSet($array, self::XML_DATABASENAME);
-        $db->customIcons = self::getIfSet($array, self::XML_CUSTOMICONS);
+        $db = new self();
+        $name = self::getIfSet($array, self::XML_DATABASENAME);
+        $customIcons = self::getIfSet($array, self::XML_CUSTOMICONS);
         $groups = self::getIfSet($array, self::GROUPS);
 
-        if (!empty($groups)) {
-            foreach ($groups as &$group) {
-                $db->addGroup(Group::loadFromArray($group, $version));
+        $db->name = is_string($name) ? $name : null;
+
+        if (is_array($customIcons)) {
+            foreach ($customIcons as $uuid => $iconData) {
+                if (is_string($uuid) && is_string($iconData)) {
+                    $db->customIcons[$uuid] = $iconData;
+                }
             }
         }
 
-        if (is_null($db->name) && is_null($db->groups)) {
-            $error = 'Database array load: empty database.';
-
-            return null;
+        if (is_array($groups)) {
+            foreach ($groups as $group) {
+                if (is_array($group)) {
+                    /** @var array<string, mixed> $group */
+                    $db->addGroup(Group::fromArray($group, $version));
+                }
+            }
         }
 
-        $error = null;
+        if ($db->name === null && $db->groups === []) {
+            throw new KeePassPHPException('Database array load: empty database.');
+        }
 
         return $db;
     }
 
-    /**
-     * Creates a new Database instance from an XML string with the format of
-     * a KeePass 2.x database.
-     *
-     * @param string       $xml          An XML string.
-     * @param RandomStream $randomStream A RandomStream instance to decrypt protected data.
-     * @param string       &$error       A string that will receive a message in case of error.
-     *
-     * @return self|null A Database instance if the parsing went okay, null otherwise.
-     */
-    public static function loadFromXML($xml, RandomStream $randomStream, &$error): ?self
+    public static function fromXML(string $xml, ?RandomStream $randomStream): self
     {
         $reader = new ProtectedXMLReader($randomStream);
 
         if (! $reader->XML($xml) || ! $reader->read(-1)) {
-            $error = 'Database XML load: cannot parse the XML string.';
             $reader->close();
 
-            return null;
+            throw new KeePassPHPException('Database XML load: cannot parse the XML string.');
         }
 
         if (! $reader->isElement(self::XML_KEEPASSFILE)) {
-            $error = "Database XML load: the root element is not '".self::XML_KEEPASSFILE."'.";
             $reader->close();
 
-            return null;
+            throw new KeePassPHPException(
+                "Database XML load: the root element is not '" . self::XML_KEEPASSFILE . "'."
+            );
         }
 
-        $db = new Database();
+        $db = new self();
         $db->parseXML($reader);
         $reader->close();
 
-        if (is_null($db->name) && is_null($db->groups)) {
-            $error = 'Database XML load: empty database.';
-
-            return null;
-        }
-
-        $error = null;
-
-        return $db;
-    }
-
-    /**
-     * Creates a new Database instance from a .kdbx (KeePass 2.x) file.
-     *
-     * @param Reader $reader A Reader instance that reads a .kdbx file.
-     * @param Key    $key    A Key instance to use to decrypt the .kdbx file.
-     * @param string &$error A string that will receive a message in case of error.
-     *
-     * @return self|null A Database instance if the parsing went okay, null otherwise.
-     */
-    public static function loadFromKdbx(Reader $reader, Key $key, &$error): ?self
-    {
-        $kdbx = KdbxFile::decrypt($reader, $key, $error);
-
-        if (is_null($kdbx)) {
-            return null;
-        }
-
-        $db = self::loadFromXML($kdbx->getContent(), $kdbx->getRandomStream(), $error);
-
-        if (is_null($db)) {
-            return null;
-        }
-
-        if ($db->headerHash !== $kdbx->getHeaderHash()) {
-            $error = 'Database Kdbx load: header hash is not correct.';
-
-            return null;
+        if ($db->name === null && $db->groups === []) {
+            throw new KeePassPHPException('Database XML load: empty database.');
         }
 
         return $db;
     }
 
-    /**
-     * Returns $array[$key] if it exists, null otherwise.
-     *
-     * @param array  $array An array.
-     * @param string $key   An array key.
-     *
-     * @return mixed $array[$key] if it exists, null otherwise.
-     */
-    public static function getIfSet(array $array, $key)
+    public static function fromKdbx(Reader $reader, Key $key): self
     {
-        return isset($array[$key]) ? $array[$key] : null;
+        $kdbx = KdbxFile::decrypt($reader, $key);
+
+        $content = $kdbx->getContent();
+        if ($content === null) {
+            throw new KeePassPHPException('Database Kdbx load: decrypted content is empty.');
+        }
+
+        $db = self::fromXML($content, $kdbx->getRandomStream());
+
+        if ($kdbx->getMajorVersion() === 3 && $db->headerHash !== $kdbx->getHeaderHash()) {
+            throw new KeePassPHPException('Database Kdbx load: header hash is not correct.');
+        }
+
+        return $db;
+    }
+
+    public function toKdbx4(Key $key, ?Kdbx4WriteOptions $options = null): string
+    {
+        return Kdbx4Writer::write($this, $key, $options);
+    }
+
+    /**
+     * @param array<string, mixed> $array
+     */
+    public static function getIfSet(array $array, string $key): mixed
+    {
+        return $array[$key] ?? null;
     }
 }

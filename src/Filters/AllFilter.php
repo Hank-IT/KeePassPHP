@@ -20,7 +20,7 @@ class AllFilter implements Filter
         return true;
     }
 
-    public function acceptHistoryEntry(Entry $historyEntry): bool
+    public function acceptHistoryEntry(Entry $entry): bool
     {
         return true;
     }

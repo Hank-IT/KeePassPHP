@@ -4,52 +4,38 @@ declare(strict_types=1);
 
 namespace KeePassPHP\Readers;
 
+use HashContext;
+
 /**
  * A Reader implementation, backed by another reader, which can compute the
  * hash of all the read data.
  */
-class DigestReader extends Reader
+final class DigestReader extends Reader
 {
-    protected $base;
-    protected $resource;
-
     /**
      * Constructs a new DigestReader implementation, reading from the Reader
-     * $reader and hashing all data with the algorithm $hashAlgo.
+     * $base and hashing all data with the algorithm $hashAlgo.
      *
-     * @param Reader $reader   A Reader instance.
+     * @param Reader $base     A Reader instance.
      * @param string $hashAlgo A hash algorithm name.
      */
-    public function __construct(Reader $reader, $hashAlgo)
-    {
-        $this->base = $reader;
-        $this->resource = hash_init($hashAlgo);
+    public function __construct(
+        protected readonly Reader $base,
+        string $hashAlgo,
+    ) {
+        $this->context = hash_init($hashAlgo);
     }
 
-    public function read($n): ?string
+    protected readonly HashContext $context;
+
+    public function read(int $n): ?string
     {
-        $s = $this->base->read($n);
-
-        if ($s !== null) {
-            hash_update($this->resource, $s);
-
-            return $s;
-        }
-
-        return null;
+        return $this->updateDigest($this->base->read($n));
     }
 
     public function readToTheEnd(): ?string
     {
-        $s = $this->base->readToTheEnd();
-
-        if ($s !== null) {
-            hash_update($$this->_resource, $s);
-
-            return $s;
-        }
-
-        return null;
+        return $this->updateDigest($this->base->readToTheEnd());
     }
 
     public function canRead(): bool
@@ -69,6 +55,15 @@ class DigestReader extends Reader
      */
     public function getDigest(): string
     {
-        return hash_final($this->resource, true);
+        return hash_final(hash_copy($this->context), true);
+    }
+
+    private function updateDigest(?string $data): ?string
+    {
+        if ($data !== null) {
+            hash_update($this->context, $data);
+        }
+
+        return $data;
     }
 }

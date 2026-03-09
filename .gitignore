@@ -8,3 +8,9 @@ test.key
 /vendor
 /demo.php
 /src/data
+/.phpunit.cache
+/.php-cs-fixer.cache
+/var
+/playground
+/storage
+/tests/Playground.php

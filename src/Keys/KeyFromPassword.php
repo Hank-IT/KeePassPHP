@@ -5,18 +5,18 @@ declare(strict_types=1);
 namespace KeePassPHP\Keys;
 
 /**
- * An iKey built from a string password.
+ * A key derived from a password string.
  */
-class KeyFromPassword extends KeyFromHash
+final class KeyFromPassword extends KeyFromHash
 {
     /**
-     * Constructs a KeyFromPassword instance from the password $pwd.
-     *
-     * @param string $pwd      A string.
+     * @param string $password A password string.
      * @param string $hashAlgo A hash algorithm name.
+     *
+     * @throws \ValueError If the hash algorithm is not supported.
      */
-    public function __construct(string $pwd, string $hashAlgo)
+    public function __construct(string $password, string $hashAlgo)
     {
-        parent::__construct(hash($hashAlgo, $pwd, true));
+        parent::__construct(hash($hashAlgo, $password, true));
     }
 }

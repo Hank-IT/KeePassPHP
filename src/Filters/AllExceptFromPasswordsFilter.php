@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace KeePassPHP\Filters;
 
+use KeePassPHP\Contracts\Filter;
 use KeePassPHP\Entry;
 use KeePassPHP\Group;
-use KeePassPHP\Contracts\Filter;
 
 class AllExceptFromPasswordsFilter implements Filter
 {
@@ -20,7 +20,7 @@ class AllExceptFromPasswordsFilter implements Filter
         return true;
     }
 
-    public function acceptHistoryEntry(Entry $historyEntry): bool
+    public function acceptHistoryEntry(Entry $entry): bool
     {
         return true;
     }

@@ -11,17 +11,12 @@ use KeePassPHP\Contracts\Key;
  */
 class KeyFromHash implements Key
 {
-    protected $hash;
-
     /**
      * Stores the given hash string.
      *
      * @param string $hash A raw hash string.
      */
-    public function __construct(string $hash)
-    {
-        $this->hash = $hash;
-    }
+    public function __construct(protected readonly string $hash) {}
 
     /**
      * Retrieves the stored hash.

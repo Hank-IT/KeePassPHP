@@ -14,52 +14,53 @@ namespace KeePassPHP\Readers;
  * - 4 bytes (little-endian integer): length (in bytes) of the block data
  * - n bytes: block data (where n is the number found previously).
  */
-class HashedBlockReader extends Reader
+final class HashedBlockReader extends Reader
 {
-    protected $base;
-    protected $hashAlgo;
-    protected $hasError;
-    protected $stopOnError;
-    protected $currentIndex;
-    protected $currentBlock;
-    protected $currentSize;
-    protected $currentPos;
-
     /**
      * Default block size used by KeePass.
      */
-    const DEFAULT_BLOCK_SIZE = 1048576; // 1024*1024
+    public const int DEFAULT_BLOCK_SIZE = 1048576; // 1024*1024
+
+    private const string END_BLOCK_HASH = "\x00\x00\x00\x00\x00\x00\x00\x00"
+        . "\x00\x00\x00\x00\x00\x00\x00\x00"
+        . "\x00\x00\x00\x00\x00\x00\x00\x00"
+        . "\x00\x00\x00\x00\x00\x00\x00\x00";
 
     /**
      * Constructs a new HashedBlockReader instance, reading from the reader
-     * $reader and using the algorithm $hashAlgo to compute block hashs.
+     * $base and using the algorithm $hashAlgo to compute block hashes.
      *
-     * @param Reader $reader      A Reader instance.
+     * @param Reader $base        A Reader instance.
      * @param string $hashAlgo    A hash algorithm name.
-     * @param bool   $stopOnError Whether to stop reading immediatly when an integrity
+     * @param bool   $stopOnError Whether to stop reading immediately when an integrity
      *                            check fails. If set to false, reading will continue after an
      *                            error but it may well be complete garbage.
      */
-    public function __construct(Reader $reader, string $hashAlgo, bool $stopOnError = true)
-    {
-        $this->base = $reader;
-        $this->hashAlgo = $hashAlgo;
-        $this->stopOnError = $stopOnError;
-        $this->hasError = false;
-        $this->currentIndex = 0;
-        $this->currentBlock = null;
-        $this->currentSize = 0;
-        $this->currentPos = 0;
-    }
+    public function __construct(
+        protected readonly Reader $base,
+        protected readonly string $hashAlgo,
+        protected readonly bool $stopOnError = true,
+    ) {}
 
-    public function read($n): ?string
+    protected bool $hasError = false;
+    protected bool $hasReachedEnd = false;
+    protected int $currentIndex = 0;
+    protected string $currentBlock = '';
+    protected int $currentSize = 0;
+    protected int $currentPos = 0;
+
+    public function read(int $n): ?string
     {
+        if ($n < 1) {
+            return '';
+        }
+
         $s = '';
         $remaining = $n;
         while ($remaining > 0) {
             if ($this->currentPos >= $this->currentSize) {
                 if (!$this->readBlock()) {
-                    return $s;
+                    return $s === '' ? null : $s;
                 }
             }
             $t = min($remaining, $this->currentSize - $this->currentPos);
@@ -73,18 +74,22 @@ class HashedBlockReader extends Reader
 
     public function readToTheEnd(): ?string
     {
-        $s = $this->read($this->currentSize - $this->currentPos);
+        $s = $this->read($this->currentSize - $this->currentPos) ?? '';
         while ($this->readBlock()) {
             $s .= $this->currentBlock;
         }
 
-        return $s;
+        return $s === '' ? null : $s;
     }
 
     public function canRead(): bool
     {
-        return (!$this->hasError || !$this->stopOnError) &&
-            $this->base->canRead();
+        if ($this->hasReachedEnd) {
+            return false;
+        }
+
+        return (!$this->hasError || !$this->stopOnError)
+            && $this->base->canRead();
     }
 
     public function close(): void
@@ -109,7 +114,7 @@ class HashedBlockReader extends Reader
         }
 
         $bl = $this->base->read(4);
-        if ($bl != pack('V', $this->currentIndex)) {
+        if ($bl !== pack('V', $this->currentIndex)) {
             $this->hasError = true;
             if ($this->stopOnError) {
                 return false;
@@ -118,7 +123,7 @@ class HashedBlockReader extends Reader
         $this->currentIndex++;
 
         $hash = $this->base->read(32);
-        if (strlen($hash) != 32) {
+        if ($hash === null || strlen($hash) !== 32) {
             $this->hasError = true;
 
             return false;
@@ -127,12 +132,23 @@ class HashedBlockReader extends Reader
         // May not work on 32 bit platforms if $blockSize is greather
         // than 2**31, but in KeePass implementation it is set at 2**20.
         $blockSize = $this->base->readNumber(4);
-        if ($blockSize <= 0) {
+        if ($blockSize === 0) {
+            if ($hash !== self::END_BLOCK_HASH) {
+                $this->hasError = true;
+            }
+            $this->hasReachedEnd = true;
+
+            return false;
+        }
+
+        if ($blockSize < 0) {
+            $this->hasError = true;
+
             return false;
         }
 
         $block = $this->base->read($blockSize);
-        if (strlen($block) != $blockSize) {
+        if ($block === null || strlen($block) !== $blockSize) {
             $this->hasError = true;
 
             return false;
@@ -167,28 +183,34 @@ class HashedBlockReader extends Reader
         $len = strlen($source);
         $blockSize = self::DEFAULT_BLOCK_SIZE;
         $binBlockSize = pack('V', $blockSize);
-        $r = '';
+        $encoded = '';
 
         $blockIndex = 0;
         $i = 0;
         while ($len >= $i + $blockSize) {
             $block = substr($source, $i, $blockSize);
-            $r .= pack('V', $blockIndex)
-                .hash($hashAlgo, $block, true)
-                .$binBlockSize
-                .$block;
+            $encoded .= pack('V', $blockIndex)
+                . hash($hashAlgo, $block, true)
+                . $binBlockSize
+                . $block;
             $i += $blockSize;
             $blockIndex++;
         }
+
         $rem = $len - $i;
-        if ($rem != 0) {
+        if ($rem !== 0) {
             $block = substr($source, $i);
-            $r .= pack('V', $blockIndex)
-                .hash($hashAlgo, $block, true)
-                .pack('V', strlen($block))
-                .$block;
+            $encoded .= pack('V', $blockIndex)
+                . hash($hashAlgo, $block, true)
+                . pack('V', strlen($block))
+                . $block;
+
+            $blockIndex++;
         }
 
-        return $r;
+        return $encoded
+            . pack('V', $blockIndex)
+            . self::END_BLOCK_HASH
+            . pack('V', 0);
     }
 }

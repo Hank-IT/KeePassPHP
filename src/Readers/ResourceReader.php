@@ -5,22 +5,21 @@ declare(strict_types=1);
 namespace KeePassPHP\Readers;
 
 /**
- * A Reader implementation reading from a PHP resource pointer (such as a
- * pointer obtained through the function fopen).
+ * A Reader implementation reading from a PHP stream resource.
  */
-class ResourceReader extends Reader
+final class ResourceReader extends Reader
 {
-    private $_res;
+    /** @var resource|null */
+    private $resource;
 
     /**
-     * Constructs a new ResourceReader instance that reads the PHP resource
-     * pointer $f.
+     * Constructs a new ResourceReader instance around a PHP stream resource.
      *
-     * @param resource $f A PHP resource pointer.
+     * @param resource $resource A PHP stream resource.
      */
-    protected function __construct($f)
+    private function __construct($resource)
     {
-        $this->_res = $f;
+        $this->resource = $resource;
     }
 
     /**
@@ -28,54 +27,63 @@ class ResourceReader extends Reader
      *
      * @param string $path A file path.
      *
-     * @return static A new ResourceReader instance if $path could be opened and is
-     *                readable, false otherwise.
+     * @return self|null A new ResourceReader instance if $path could be opened and is
+     *                   readable, null otherwise.
      */
-    public static function openFile($path)
+    public static function openFile(string $path): ?self
     {
-        if (is_readable($path)) {
-            $f = fopen($path, 'rb');
-            if ($f !== false) {
-                return new static($f);
-            }
+        if (!is_readable($path)) {
+            return null;
         }
 
-        return null;
+        $resource = fopen($path, 'rb');
+        if ($resource === false) {
+            return null;
+        }
+
+        return new self($resource);
     }
 
-    public function read($n): ?string
+    public function read(int $n): ?string
     {
-        if ($this->canRead()) {
-            $s = fread($this->_res, $n);
-            if ($s !== false) {
-                return $s;
-            }
+        if ($n < 1) {
+            return '';
         }
 
-        return null;
+        $resource = $this->resource;
+        if (!is_resource($resource) || feof($resource)) {
+            return null;
+        }
+
+        $chunk = fread($resource, $n);
+
+        return $chunk === false ? null : $chunk;
     }
 
     public function readToTheEnd(): ?string
     {
-        if (!$this->canRead()) {
+        $resource = $this->resource;
+        if (!is_resource($resource) || feof($resource)) {
             return null;
         }
 
-        ob_start();
-        fpassthru($this->_res);
-        $r = ob_get_contents();
-        ob_end_clean();
+        $contents = stream_get_contents($resource);
 
-        return $r;
+        return $contents === false ? null : $contents;
     }
 
     public function canRead(): bool
     {
-        return !feof($this->_res);
+        return is_resource($this->resource) && !feof($this->resource);
     }
 
     public function close(): void
     {
-        fclose($this->_res);
+        if (!is_resource($this->resource)) {
+            return;
+        }
+
+        fclose($this->resource);
+        $this->resource = null;
     }
 }

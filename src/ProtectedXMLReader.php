@@ -1,7 +1,10 @@
 <?php
 
+declare(strict_types=1);
+
 namespace KeePassPHP;
 
+use KeePassPHP\Contracts\BoxedString;
 use KeePassPHP\Contracts\RandomStream;
 use KeePassPHP\Strings\ProtectedString;
 use KeePassPHP\Strings\UnprotectedString;
@@ -10,160 +13,122 @@ use XMLReader;
 /**
  * An XML reader with specific methods to ignore non-Element or text nodes,
  * and parse KeePass-style "protected" strings.
- *
- * @author     Louis Traynard <louis.traynard@m4x.org>
- * @copyright  Louis Traynard
- * @license    http://www.opensource.org/licenses/mit-license.html  MIT License
- *
- * @link       https://github.com/shkdee/KeePassPHP
  */
-class ProtectedXMLReader
+final class ProtectedXMLReader
 {
-    const STOP = 0;
-    const GO_ON = 1;
-    const DO_NOT_READ = 2;
+    private const int STOP = 0;
+    private const int GO_ON = 1;
+    private const int DO_NOT_READ = 2;
 
-    const XML_ATTR_PROTECTED = 'Protected';
-    const XML_ATTR_TRUE = 'True';
+    public const string XML_ATTR_PROTECTED = 'Protected';
+    public const string XML_ATTR_TRUE = 'True';
 
-    public $r;
-    private $_state;
-    private $_randomStream;
+    private readonly XMLReader $reader;
+    private int $state = self::GO_ON;
 
-    public function __construct(RandomStream $randomStream = null)
+    public function __construct(private readonly ?RandomStream $randomStream = null)
     {
-        $this->r = new XMLReader();
-        $this->_state = self::GO_ON;
-        $this->_randomStream = $randomStream;
+        $this->reader = new XMLReader();
     }
 
-    /**
-     * Opens the UTF-8-encoded file $file with the internal XMLReader.
-     *
-     * @param string $file A path to an UTF-8-encoded XML file.
-     *
-     * @return bool true in case of success, false otherwise.
-     */
-    public function open($file)
+    public function open(string $file): bool
     {
-        return file_exists($file) && $this->r->open($file, 'UTF-8');
+        return is_file($file) && $this->reader->open($file, 'UTF-8') === true;
     }
 
-    /**
-     * Sets the UTF-8-encoded $src string as the XML source.
-     *
-     * @param $src string An UTF-8-encoded XML string.
-     *
-     * @return bool true in case of success, false otherwise.
-     */
-    public function XML($src)
+    public function XML(string $src): bool
     {
-        return $this->r->XML($src, 'UTF-8');
+        return $this->reader->XML($src, 'UTF-8') === true;
     }
 
-    /**
-     * Closes the XMLReader input.
-     *
-     * @return bool Returns true on success or false on failure.
-     */
-    public function close()
+    public function close(): bool
     {
-        return $this->r->close();
+        return $this->reader->close();
     }
 
-    /**
-     * Gets the depth of the current node in the XML tree.
-     *
-     * @return string The depth of the current node.
-     */
-    public function depth()
+    public function depth(): int
     {
-        return $this->r->depth;
+        return $this->reader->depth;
     }
 
-    /**
-     * Checks whether the current element has the given tagname.
-     *
-     * @return bool true if the tag name is $name, false otherwise.
-     */
-    public function isElement($name)
+    public function isElement(string $name): bool
     {
-        return \strcasecmp($name, $this->r->name) == 0;
+        return strcasecmp($name, $this->reader->name) === 0;
     }
 
-    /**
-     * Reads the next Element node of the XML stream if its depth is strictly
-     * higher than $depth.
-     *
-     * @param string $depth The minimum depth of the Element to read.
-     *
-     * @return bool false if the XML source ended, or if the depth of the next node
-     *              is lower than or equal to $depth.
-     */
-    public function read($depth)
+    public function getAttribute(string $name): ?string
     {
-        if ($this->_state == self::STOP) {
+        return $this->reader->getAttribute($name);
+    }
+
+    public function read(int $depth): bool
+    {
+        if ($this->state === self::STOP) {
             return false;
         }
-        if ($this->_state == self::GO_ON) {
+
+        if ($this->state === self::GO_ON) {
             do {
-                if (!@$this->r->read()) {
-                    $this->_state = self::STOP;
+                if (! $this->reader->read()) {
+                    $this->state = self::STOP;
 
                     return false;
                 }
-            } while ($this->r->nodeType != XMLReader::ELEMENT);
+            } while ($this->reader->nodeType !== XMLReader::ELEMENT);
         }
-        if ($this->r->depth > $depth) {
-            $this->_state = self::GO_ON;
+
+        if ($this->reader->depth > $depth) {
+            $this->state = self::GO_ON;
 
             return true;
-        } else {
-            $this->_state = self::DO_NOT_READ;
-
-            return false;
         }
+
+        $this->state = self::DO_NOT_READ;
+
+        return false;
     }
 
-    /**
-     * Reads the text content of the current Element node.
-     *
-     * @param bool $asProtectedString Whether to return an iBoxedString instance
-     *                                rather than a plain string.
-     *
-     * @return string|null The text content if it exists, or null.
-     */
-    public function readTextInside($asProtectedString = false)
+    public function readTextInside(bool $asProtectedString = false): BoxedString|string|null
     {
-        if ($this->_state != self::GO_ON || $this->r->isEmptyElement) {
-            return null;
-        }
-        $isProtected = $this->r->hasAttributes &&
-            $this->r->getAttribute(self::XML_ATTR_PROTECTED) == self::XML_ATTR_TRUE;
-
-        if (!@$this->r->read()) {
-            $this->_state = self::STOP;
-
+        if ($this->state !== self::GO_ON || $this->reader->isEmptyElement) {
             return null;
         }
 
-        if ($this->r->nodeType == XMLReader::TEXT) {
-            $value = $this->r->value;
-            if (!$isProtected || empty($value) || $this->_randomStream == null) {
-                return $asProtectedString
-                    ? new UnprotectedString($value)
-                    : $value;
-            }
-            $value = base64_decode($value);
-            $random = $this->_randomStream->getNextBytes(strlen($value));
+        $isProtected = $this->reader->hasAttributes
+            && $this->reader->getAttribute(self::XML_ATTR_PROTECTED) === self::XML_ATTR_TRUE;
 
-            return $asProtectedString
-                ? new ProtectedString($value, $random)
-                : $value ^ $random;
-        } elseif ($this->r->nodeType == XMLReader::ELEMENT) {
-            $this->_state = self::DO_NOT_READ;
+        if (! $this->reader->read()) {
+            $this->state = self::STOP;
 
             return null;
         }
+
+        if ($this->reader->nodeType === XMLReader::TEXT || $this->reader->nodeType === XMLReader::CDATA) {
+            return $this->decodeTextValue($this->reader->value, $isProtected, $asProtectedString);
+        }
+
+        if ($this->reader->nodeType === XMLReader::ELEMENT) {
+            $this->state = self::DO_NOT_READ;
+        }
+
+        return null;
+    }
+
+    private function decodeTextValue(string $value, bool $isProtected, bool $asProtectedString): BoxedString|string|null
+    {
+        if (! $isProtected || $value === '' || $this->randomStream === null) {
+            return $asProtectedString ? new UnprotectedString($value) : $value;
+        }
+
+        $decodedValue = base64_decode($value, true);
+        if ($decodedValue === false) {
+            return null;
+        }
+
+        $random = $this->randomStream->getNextBytes(strlen($decodedValue));
+
+        return $asProtectedString
+            ? new ProtectedString($decodedValue, $random)
+            : ($decodedValue ^ $random);
     }
 }

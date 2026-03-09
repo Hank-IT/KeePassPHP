@@ -14,7 +14,7 @@ final class ChaCha20RandomStream implements RandomStream
 
     private string $buffer = '';
     private int $bufferPos = self::BLOCK_LEN;
-    private int $counter = 0;
+    private int $counter = 1;
 
     private function __construct(
         private readonly string $key,

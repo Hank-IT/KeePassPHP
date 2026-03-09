@@ -49,7 +49,7 @@ final class Kdbx4KeyDerivation
         }
 
         $cipher = new CipherOpenSSL('aes-256-ecb', $seed, '', Cipher::PADDING_NONE);
-        $transformedKey = $cipher->encryptManyTimes($key->getHash(), $rounds);
+        $transformedKey = $cipher->encryptManyTimes(KdbxKeyHash::resolveCompositeHash($key), $rounds);
         if ($transformedKey === null) {
             throw new KeePassPHPException('Kdbx4 file decrypt: AES-KDF transformation failed.');
         }

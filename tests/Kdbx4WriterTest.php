@@ -10,8 +10,11 @@ use KeePassPHP\Exceptions\KeePassPHPException;
 use KeePassPHP\Group;
 use KeePassPHP\Kdbx4WriteOptions;
 use KeePassPHP\Kdbx4Writer;
+use KeePassPHP\KdbxFile;
 use KeePassPHP\KdbxInspector;
+use KeePassPHP\Keys\CompositeKey;
 use KeePassPHP\Keys\KeyFromPassword;
+use KeePassPHP\Readers\ResourceReader;
 use KeePassPHP\Readers\StringReader;
 use KeePassPHP\Strings\UnprotectedString;
 use PHPUnit\Framework\TestCase;
@@ -59,6 +62,10 @@ final class Kdbx4WriterTest extends TestCase
         self::assertSame('AES-256', $metadata->cipherName);
         self::assertSame('AES-KDF', $metadata->kdfName);
 
+        $opened = KdbxFile::decrypt(new StringReader($payload), $key);
+        self::assertNotNull($opened->getContent());
+        self::assertStringContainsString('Protected="True"', (string) $opened->getContent());
+
         $decoded = Database::fromKdbx(new StringReader($payload), $key);
 
         self::assertSame('Generated Database', $decoded->getName());
@@ -94,6 +101,79 @@ final class Kdbx4WriterTest extends TestCase
             new KeyFromPassword('master-password', 'SHA256'),
             new Kdbx4WriteOptions(innerRandomStream: 99),
         );
+    }
+
+    public function testPasswordKeyMatchesEquivalentCompositeKeyForKdbx4Writing(): void
+    {
+        $database = new Database();
+        $database->setName('Generated Database');
+
+        $group = new Group();
+        $group->uuid = self::uuid('0123456789ABCDEFFEDCBA9876543210');
+        $group->name = 'Root';
+
+        $entry = new Entry();
+        $entry->uuid = self::uuid('00112233445566778899AABBCCDDEEFF');
+        $entry->setStringField(Database::KEY_TITLE, new UnprotectedString('Example'));
+        $entry->setPassword(new UnprotectedString('secret-password'));
+
+        $group->addEntry($entry);
+        $database->addGroup($group);
+
+        $passwordKey = new KeyFromPassword('master-password', 'SHA256');
+        $payload = $database->toKdbx4($passwordKey);
+
+        $compositeKey = new CompositeKey('SHA256');
+        $compositeKey->addKey(new KeyFromPassword('master-password', 'SHA256'));
+
+        $decoded = Database::fromKdbx(new StringReader($payload), $compositeKey);
+
+        self::assertSame('Generated Database', $decoded->getName());
+        self::assertSame('secret-password', $decoded->getPassword($entry->uuid ?? ''));
+    }
+
+    public function testWrittenKdbx4CanBeReopenedFromFile(): void
+    {
+        $database = new Database();
+        $database->setName('Generated Database');
+
+        $group = new Group();
+        $group->uuid = self::uuid('11111111111111111111111111111111');
+        $group->name = 'Root';
+
+        $entry = new Entry();
+        $entry->uuid = self::uuid('22222222222222222222222222222222');
+        $entry->setStringField(Database::KEY_TITLE, new UnprotectedString('Example'));
+        $entry->setPassword(new UnprotectedString('secret-password'));
+
+        $group->addEntry($entry);
+        $database->addGroup($group);
+
+        $payload = $database->toKdbx4(new KeyFromPassword('master-password', 'SHA256'));
+
+        $path = tempnam(sys_get_temp_dir(), 'kdbx4-');
+        self::assertNotFalse($path);
+
+        try {
+            self::assertNotFalse(file_put_contents($path, $payload));
+
+            $reader = ResourceReader::openFile($path);
+            self::assertNotNull($reader);
+
+            try {
+                $decoded = Database::fromKdbx(
+                    $reader,
+                    new KeyFromPassword('master-password', 'SHA256'),
+                );
+            } finally {
+                $reader->close();
+            }
+
+            self::assertSame('Generated Database', $decoded->getName());
+            self::assertSame('secret-password', $decoded->getPassword($entry->uuid ?? ''));
+        } finally {
+            unlink($path);
+        }
     }
 
     private static function uuid(string $hex): string

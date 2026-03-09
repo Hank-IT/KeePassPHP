@@ -212,7 +212,7 @@ final class Kdbx3File implements OpenedKdbxFile
             $roundValues[] = $value;
         }
 
-        $keyHash = $key->getHash();
+        $keyHash = KdbxKeyHash::resolveCompositeHash($key);
         $o = $roundValues[0] | (($roundValues[1] & 0x3fff) << 16);
         $t = (($roundValues[1] & 0xc000) >> 14) | ($roundValues[2] << 2) | (($roundValues[3] & 0x0fff) << 18);
         $h = ($roundValues[3] & 0xf000) >> 12;

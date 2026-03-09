@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace KeePassPHP\Tests\Fixtures;
 
 use KeePassPHP\Kdbx4Header;
+use KeePassPHP\KdbxKeyHash;
 use KeePassPHP\Keys\KeyFromPassword;
 use KeePassPHP\Streams\ChaCha20RandomStream;
 use RuntimeException;
@@ -83,7 +84,7 @@ final class Kdbx4FixtureBuilder
         $innerHeader = self::buildInnerHeader($innerKey);
         $plaintext = $innerHeader . $xml;
 
-        $transformed = self::transformAesKdf($key->getHash(), $kdfSeed, $rounds);
+        $transformed = self::transformAesKdf(KdbxKeyHash::resolveCompositeHash($key), $kdfSeed, $rounds);
         $encryptionKey = hash('sha256', $masterSeed . $transformed, true);
         $hmacBaseKey = hash('sha512', $masterSeed . $transformed . "\x01", true);
 

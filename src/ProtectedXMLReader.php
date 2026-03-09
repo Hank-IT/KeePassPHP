@@ -21,7 +21,6 @@ final class ProtectedXMLReader
     private const int DO_NOT_READ = 2;
 
     public const string XML_ATTR_PROTECTED = 'Protected';
-    public const string XML_ATTR_TRUE = 'True';
 
     private readonly XMLReader $reader;
     private int $state = self::GO_ON;
@@ -95,7 +94,7 @@ final class ProtectedXMLReader
         }
 
         $isProtected = $this->reader->hasAttributes
-            && $this->reader->getAttribute(self::XML_ATTR_PROTECTED) === self::XML_ATTR_TRUE;
+            && self::isXmlBooleanTrue($this->reader->getAttribute(self::XML_ATTR_PROTECTED));
 
         if (! $this->reader->read()) {
             $this->state = self::STOP;
@@ -130,5 +129,14 @@ final class ProtectedXMLReader
         return $asProtectedString
             ? new ProtectedString($decodedValue, $random)
             : ($decodedValue ^ $random);
+    }
+
+    private static function isXmlBooleanTrue(?string $value): bool
+    {
+        return $value !== null
+            && (
+                strcasecmp($value, 'true') === 0
+                || $value === '1'
+            );
     }
 }

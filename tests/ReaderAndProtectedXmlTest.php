@@ -93,7 +93,7 @@ final class ReaderAndProtectedXmlTest extends TestCase
         $xml = <<<XML
             <?xml version="1.0" encoding="UTF-8"?>
             <Root>
-              <Value Protected="True">{$protectedValue}</Value>
+              <Value Protected="true">{$protectedValue}</Value>
             </Root>
             XML;
 

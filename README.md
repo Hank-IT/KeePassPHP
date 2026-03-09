@@ -329,7 +329,7 @@ Supported for writing in KDBX 4.1 with:
 
 - outer cipher `AES-256`
 - KDF `AES-KDF`
-- inner random stream `ChaCha20` by default
+- inner random stream `Salsa20` by default
 
 ## Limitations
 

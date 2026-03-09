@@ -17,15 +17,21 @@ final class ChaCha20RandomStreamTest extends TestCase
 
     public function testGeneratedBytesMatchKnownChaCha20Vector(): void
     {
-        $stream = ChaCha20RandomStream::create(str_repeat("\x00", 32), str_repeat("\x00", 12));
+        $key = hex2bin('000102030405060708090A0B0C0D0E0F101112131415161718191A1B1C1D1E1F');
+        $nonce = hex2bin('000000090000004A00000000');
+
+        self::assertNotFalse($key);
+        self::assertNotFalse($nonce);
+
+        $stream = ChaCha20RandomStream::create($key, $nonce);
 
         self::assertNotNull($stream);
         self::assertSame(
             hex2bin(
-                '76b8e0ada0f13d90405d6ae55386bd28'
-                . 'bdd219b8a08ded1aa836efcc8b770dc7'
-                . 'da41597c5157488d7724e03fb8d84a37'
-                . '6a43b8f41518a11cc387b669b2ee6586',
+                '10f1e7e4d13b5915500fdd1fa32071c4'
+                . 'c7d1f4c733c068030422aa9ac3d46c4e'
+                . 'd2826446079faa0914c2d705d98b02a2'
+                . 'b5129cd1de164eb9cbd083e8a2503c4e',
             ),
             $stream->getNextBytes(64),
         );
